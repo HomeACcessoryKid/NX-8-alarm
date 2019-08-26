@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <espressif/esp_wifi.h>
 #include <espressif/esp_sta.h>
-//#include <espressif/esp_system.h> //for timestamp report only
+#include <espressif/esp_system.h> //for timestamp report only
 #include <esp/uart.h>
 #include <esp8266.h>
 #include <FreeRTOS.h>
@@ -173,9 +173,33 @@ void state_task(void *argv) {
         }
     }
 }
+#include <nx8bus.h>
+#define RX_PIN 5
+#define TX_PIN 2
+#define ENABLE_PIN 4
 
+void receive_task(void *argv) {
+    uint16_t data;
+    char fill[20];
+    uint32_t newtime, oldtime;
+    
+    oldtime=sdk_system_get_time()/1000;
+
+    nx8bus_open(RX_PIN, TX_PIN, ENABLE_PIN);
+    while (true) {
+        if (!nx8bus_available()) {vTaskDelay(1);continue;} //must not monopolize CPU
+        data = nx8bus_read();
+        if (data>0xff) {
+            newtime=sdk_system_get_time()/1000;
+            sprintf(fill,"\n%5d%9d: ",newtime-oldtime,newtime);
+            oldtime=newtime;
+        }
+        UDPLUO("%s%02x", data>0xff?fill:" ", data);
+    }
+}
 
 void alarm_init() {
+    xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
 //    xTaskCreate(state_task, "State", 512, NULL, 1, NULL);
 }
 
