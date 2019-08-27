@@ -17,6 +17,7 @@
 #include <espressif/esp_system.h> //for timestamp report only
 #include <esp/uart.h>
 #include <esp8266.h>
+#include <espressif/esp_common.h> //find us-delay support
 #include <FreeRTOS.h>
 #include <task.h>
 #include <homekit/homekit.h>
@@ -198,8 +199,16 @@ void receive_task(void *argv) {
     }
 }
 
+void transmit_task(void *argv) {
+    while(1) {
+        vTaskDelay(200);
+        nx8bus_command("hello",5);
+    }
+}
+
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
+    xTaskCreate(transmit_task, "transmit", 512, NULL, 2, NULL);
 //    xTaskCreate(state_task, "State", 512, NULL, 1, NULL);
 }
 

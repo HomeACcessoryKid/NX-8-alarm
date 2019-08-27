@@ -1,13 +1,16 @@
+/** (c) 2019 HomeACcessoryKid@gmail.com
+ * This is a driver for the NX8 bus based on a 4512 bus driver with a fixed address selected
+ * the selected input is connected to a NPN driver with 10k colector to 12V bus power and by a base 220kohm to the tx pin 
+ * the inhinit pin 15 is connected with NPN driver to the enable pin
+ * the Z output 14 is connected to the bus dataline
+ * the rx pin is reading the bus by a divider of 10k to ground and 33k to the dataline
+ * some credit goes to the softuart writers on which this is loosly based
+ */
 #ifndef NX8BUS_H_
 #define NX8BUS_H_
 
 #include <stdint.h>
 #include <stdbool.h>
-
-
-#ifndef NX8BUS_MAX_RX_BUFF
-    #define NX8BUS_MAX_RX_BUFF 128 //!< Must be power of two: 2, 4, 8, 16 etc.
-#endif
 
 /**
  * Initialize nx8 bus and setup interrupt handler
@@ -18,17 +21,24 @@
 bool nx8bus_open(uint8_t rx_pin, uint8_t tx_pin, uint8_t enable);
 
 /**
+ * Put command to nx8bus uart
+ * @param cc 8 bit symbols which create a command plus content, without CRC
+ * @param len number of symbols without CRC
+ */
+void nx8bus_command(char * cc, uint8_t len);
+
+/**
  * Check if data is available
  * @return true if data is available otherwise false
  */
 bool nx8bus_available();
 
 /**
- * Read current byte from internal buffer if available.
+ * Read current symbol from internal buffer if available.
  *
  * NOTE: This call is non blocking.
- * NOTE: You have to check softuart_available() first.
- * @return current byte if available otherwise 0
+ * NOTE: You have to check nx8bus_available() first.
+ * @return current two byte symbol if available otherwise 0
  */
 uint16_t nx8bus_read();
 
