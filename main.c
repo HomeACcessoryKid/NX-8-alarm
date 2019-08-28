@@ -178,8 +178,10 @@ void state_task(void *argv) {
 #define RX_PIN 5
 #define TX_PIN 2
 #define ENABLE_PIN 4
+char ack1[]={0x08, 0x44, 0x00, 0x4c, 0xa0}; int ack1_len=5; //generic answer to ID query 1ID 10 xx xx
 
 void receive_task(void *argv) {
+    int state=0;
     uint16_t data;
     char fill[20];
     uint32_t newtime, oldtime;
@@ -196,19 +198,21 @@ void receive_task(void *argv) {
             oldtime=newtime;
         }
         UDPLUO("%s%02x", data>0xff?fill:" ", data);
-    }
-}
-
-void transmit_task(void *argv) {
-    while(1) {
-        vTaskDelay(200);
-        nx8bus_command("hello",5);
+        //if data == 1d8 10 e8 c1
+        if (state==3) {if (data== 0xc1) state=4; else state=0;}
+        if (state==2) {if (data== 0xe8) state=3; else state=0;}
+        if (state==1) {if (data== 0x10) state=2; else state=0;}
+        if (state==0    && data==0x1d8) state=1;
+        if (state==4) {
+            nx8bus_command(ack1,ack1_len);
+            UDPLUO(" knock knock");
+            state=0;
+        }
     }
 }
 
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-    xTaskCreate(transmit_task, "transmit", 512, NULL, 2, NULL);
 //    xTaskCreate(state_task, "State", 512, NULL, 1, NULL);
 }
 
@@ -252,13 +256,13 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.0\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.1\n");
 
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
                                       &model.value.string_value,&revision.value.string_value);
-    c_hash=1; revision.value.string_value="0.0.1"; //cheat line
+    //c_hash=1; revision.value.string_value="0.0.1"; //cheat line
     config.accessories[0]->config_number=c_hash;
     
     homekit_server_init(&config);
