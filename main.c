@@ -178,13 +178,32 @@ void state_task(void *argv) {
 #define RX_PIN 5
 #define TX_PIN 2
 #define ENABLE_PIN 4
-char ack1[]={0x08, 0x44, 0x00, 0x4c, 0xa0}; int ack1_len=5; //generic answer to ID query 1ID 10 xx xx
+#define MY_ID  0x1d8
+
+#define send_command(cmd) do{   UDPLUO("\nSEND         =>"); \
+                                for (int i=0;i<sizeof(cmd);i++) UDPLUO(" %02x",cmd[i]); \
+                                nx8bus_command(cmd,sizeof(cmd)); \
+                            } while(0)
+int  pending_ack=0;
+char ack210[]={0x08, 0x44, 0x00, 0x4c, 0xa0};
+uint8_t command[20]; //assuming no command will be longer
+
+int CRC_OK(int len) {
+    command[len++]=nx8bus_read();
+    command[len++]=nx8bus_read();
+
+    UDPLUO(" checked:");
+    for (int i=0;i<len;i++) UDPLUO(" %02x",command[i]);
+    UDPLUO("\n");
+    return 1; //TODO verify CRC
+}
 
 void receive_task(void *argv) {
-    int state=0;
+    int state=0, send_ok=0;
     uint16_t data;
     char fill[20];
     uint32_t newtime, oldtime;
+    int i=0;
     
     oldtime=sdk_system_get_time()/1000;
 
@@ -192,23 +211,108 @@ void receive_task(void *argv) {
     while (true) {
         if (!nx8bus_available()) {vTaskDelay(1);continue;} //must not monopolize CPU
         data = nx8bus_read();
+
         if (data>0xff) {
             newtime=sdk_system_get_time()/1000;
-            sprintf(fill,"\n%5d%9d: ",newtime-oldtime,newtime);
+            sprintf(fill,"\n%d%4d%9d: ",send_ok,newtime-oldtime,newtime);
             oldtime=newtime;
         }
         UDPLUO("%s%02x", data>0xff?fill:" ", data);
-        //if data == 1d8 10 e8 c1
-        if (state==3) {if (data== 0xc1) state=4; else state=0;}
-        if (state==2) {if (data== 0xe8) state=3; else state=0;}
-        if (state==1) {if (data== 0x10) state=2; else state=0;}
-        if (state==0    && data==0x1d8) state=1;
-        if (state==4) {
-            nx8bus_command(ack1,ack1_len);
-            UDPLUO(" knock knock");
-            state=0;
+
+        switch(state) {
+            case 0: { //waiting for a command
+                if (data>0xff) command[0]=data-0x100;
+                switch(data){
+                    case 0x100: case 0x101: case 0x102: case 0x103: 
+                    case 0x104: case 0x105: case 0x106: case 0x107: { //status messages
+                        state=1;
+                    } break;      //status messages
+                    case MY_ID: { //message for me
+                        state=2;
+                    } break;      //message for me
+                } //switch data state 0
+            } break;  //waiting for a command
+            case 1: { //status message 1st level
+                command[1]=data;
+                switch(data){
+                    case 0x00: { //status 00
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 00");
+                    } break;
+                    case 0x01: { //status 01
+                        for (i=2;i<12;i++)command[i]=nx8bus_read();
+                        if (CRC_OK(12)) UDPLUO(" status 01");
+                        //crunch command[] for message
+                    } break;
+                    case 0x02: { //status 02
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 02");
+                    } break;
+                    case 0x04: { //status 04
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 04");
+                    } break;
+                    case 0x05: { //status 05
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 05");
+                    } break;
+                    case 0x06: { //status 06
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 06");
+                    } break;
+                    case 0x07: { //status 07
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 07");
+                    } break;
+                    case 0x08: { //status 08
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 08");
+                    } break;
+                    case 0x09: { //status 09
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 09");
+                    } break;
+                    case 0x0a: { //status 0a
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 0a");
+                    } break;
+                    case 0x0b: { //status 0a
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 0b");
+                    } break;
+                    case 0x0c: { //status 0a
+                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        if (CRC_OK( 8)) UDPLUO(" status 0c");
+                    } break;
+                    case 0x18: { //status 18
+                        for (i=2;i<10;i++)command[i]=nx8bus_read();
+                        if (command[2]==0 && CRC_OK(10)) UDPLUO(" status 18 00"); else UDPLUO(" status 18 ignored");
+                    } break;
+                    default: UDPLUO(" status unknown"); break; //unknown status message
+                } //switch data state 1
+                state=0; //ready for the next command because all commands read complete
+                send_ok=command[0]?0:1;
+            } break;  //status message 1st level
+            case 2: { //message for me 1st level
+                command[1]=data;
+                switch(data){
+                    case 0x10: { //2 10 is keepalive polling
+                        if (CRC_OK(2)) send_command(ack210);
+                    } break;
+                    case 0x40: { //2 40 is 108 command ACK
+                        if (CRC_OK(2)) pending_ack=0;
+                    } break;
+                    default: { //unknown command for me
+                    } break;
+                } //switch data state 2
+                state=0; //ready for the next command because max len is 2+2
+            } break; //message for me 1st level
+            default: {
+                UDPLUO(" undefined state encountered\n");
+                state=0;
+            } break;
         }
-    }
+    }//while true
 }
 
 void alarm_init() {
