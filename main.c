@@ -264,7 +264,7 @@ void receive_task(void *argv) {
                 switch(data){
                     case 0x04: { //status 04 contains triggered zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 04");
+                        if (CRC_OK( 8)) {UDPLUO(" status 04");parse04();}
                     } break;
                     case 0x07: { //status 07 contains blocked zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
@@ -361,7 +361,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.8\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.9\n");
 
     alarm_init();
     
