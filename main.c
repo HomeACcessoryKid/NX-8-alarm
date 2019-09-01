@@ -187,7 +187,7 @@ void state_task(void *argv) {
                             } while(0)
 #define read_byte(data)   do{   while(1) { \
                                     if (!nx8bus_available()) {vTaskDelay(1);continue;} \
-                                    data = nx8bus_read(); \
+                                    data = nx8bus_read(); break; \
                                 } \
                             } while(0) //must not monopolize CPU
 uint8_t command[20]; //assuming no command will be longer
@@ -363,7 +363,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.4\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.5\n");
 
     alarm_init();
     
