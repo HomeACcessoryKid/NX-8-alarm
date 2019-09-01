@@ -31,6 +31,7 @@
 
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
 int currentstate=INITIALCURRENT;
+int pinbyte1=0,pinbyte2=0;
 // add this section to make your device OTA capable
 // create the extra characteristic &ota_trigger, at the end of the primary service (before the NULL)
 // it can be used in Eve, which will show it, where Home does not
@@ -128,31 +129,19 @@ void target_set(homekit_value_t value) {
     ##__VA_ARGS__
 
 homekit_value_t pin_get();
-void pin1_set(homekit_value_t value);
-void pin2_set(homekit_value_t value);
-void pin3_set(homekit_value_t value);
-
-homekit_characteristic_t pin1 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN1CODE, 0, .setter=pin1_set, .getter=pin_get);
-homekit_characteristic_t pin2 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN2CODE, 0, .setter=pin2_set, .getter=pin_get);
-homekit_characteristic_t pin3 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN3CODE, 0, .setter=pin3_set, .getter=pin_get);
-homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0,                   .getter=pin_get);
+homekit_characteristic_t pin1 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN1CODE, 0, .getter=pin_get);
+homekit_characteristic_t pin2 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN2CODE, 0, .getter=pin_get);
+homekit_characteristic_t pin3 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN3CODE, 0, .getter=pin_get);
+homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0, .getter=pin_get);
 
 homekit_value_t pin_get() {
-    UDPLUO("save digits to be used: %d %d %d %d",pin1.value.int_value,pin2.value.int_value,pin3.value.int_value,pin4.value.int_value);
-    int byte1=pin1.value.int_value+pin2.value.int_value*0x100;
-    int byte2=pin3.value.int_value+pin4.value.int_value*0x100;
-    UDPLUO(" PIN bytes %02x %02x\n",byte1,byte2);
-    return HOMEKIT_INT(9); 
-}
-void pin1_set(homekit_value_t value) {
-    UDPLUO("Pin1Set: %d\n", value.int_value);
-    pin1.value=value;
-}
-void pin2_set(homekit_value_t value) {
-    pin2.value=value;
-}
-void pin3_set(homekit_value_t value) {
-    UDPLUO("Pin3Set: %d\n", value.int_value);
+    if (pin1.value.int_value || pin2.value.int_value || pin3.value.int_value || pin4.value.int_value  ) {
+        pinbyte1=pin1.value.int_value+pin2.value.int_value*0x10;
+        pinbyte2=pin3.value.int_value+pin4.value.int_value*0x10;
+        pin1.value.int_value=0; pin2.value.int_value=0; pin3.value.int_value=0; pin4.value.int_value=0;
+    }
+    UDPLUO("\nPIN bytes %02x %02x\n",pinbyte1,pinbyte2);
+    return HOMEKIT_INT(0); 
 }
 
 
@@ -175,8 +164,8 @@ void identify(homekit_value_t _value) {
 #define MY_ID  0x1d8
 
 //#define send_command(cmd) do{   nx8bus_command(cmd,sizeof(cmd)); } while(0)
-#define send_command(cmd) do{   UDPLUO("\nSEND         => 1"); \
-                                for (int i=0;i<sizeof(cmd);i++) UDPLUO("%02x ",cmd[i]); \
+#define send_command(cmd) do{   UDPLUO("\n SEND                       => "); \
+                                for (int i=0;i<sizeof(cmd);i++) UDPLUO(" %02x",cmd[i]); \
                                 nx8bus_command(cmd,sizeof(cmd)); \
                             } while(0)
 #define read_byte(data)   do{   while(1) { \
@@ -213,7 +202,7 @@ void parse18(void) { //command is 10X 18 PP
     if (alarmtype.value.int_value!=old_alarm  )
                                     homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
                                     
-    UDPLUO("ar%d al%d st%d cu%d at%d",armed,alarm,stay,current.value.int_value,alarmtype.value.int_value);
+    UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
 }
 
 int CRC_OK(int len) {
@@ -266,25 +255,25 @@ void receive_task(void *argv) {
                 switch(data){
                     case 0x04: { //status 04 contains triggered zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 04.");
+                        if (CRC_OK( 8)) UDPLUO(" status 04");
                     } break;
                     case 0x07: { //status 07 contains blocked zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 07.");
+                        if (CRC_OK( 8)) UDPLUO(" status 07");
                     } break;
                     case 0x18: { //status 18 contains partition status
                         for (i=2;i< 10;i++) read_byte(command[i]);
-                        if (command[2]==0 && CRC_OK(10)) {UDPLUO(" status 18 00.");parse18();}
+                        if (command[2]==0 && CRC_OK(10)) {UDPLUO(" status 18 00");parse18();}
                         else {UDPLUO(" %02x skip",command[2]); read_byte(command[i++]); read_byte(command[i]);}
                     } break;
                     case 0x00: case 0x02: case 0x03: case 0x05: case 0x06:   //status 00,02,03,05,06
                     case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: { //status 08-0c
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status %02x.",command[1]);
+                        if (CRC_OK( 8)) UDPLUO(" status %02x",command[1]);
                     } break;
                     case 0x01: { //status 01
                         for (i=2;i<12;i++) read_byte(command[i]);
-                        if (CRC_OK(12)) UDPLUO(" status 01.");
+                        if (CRC_OK(12)) UDPLUO(" status 01");
                     } break;
                     default: UDPLUO(" status unknown"); break; //unknown status message
                 } //switch data state 1
@@ -357,7 +346,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.6\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.7\n");
 
     alarm_init();
     
