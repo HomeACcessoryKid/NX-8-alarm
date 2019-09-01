@@ -67,8 +67,9 @@ void target_set(homekit_value_t value) {
     }
     UDPLUS("Target:%3d\n",value.int_value);
     target.value=value;
-    current.value.int_value=value.int_value;
-    homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
+    //send the right command and verify the result
+//     current.value.int_value=value.int_value;
+//     homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
 }
 
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_PIN1CODE HOMEKIT_CUSTOM_UUID("F0000011")
@@ -144,6 +145,7 @@ homekit_value_t pin_get() {
     return HOMEKIT_INT(0); 
 }
 
+homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
@@ -203,6 +205,13 @@ void parse18(void) { //command is 10X 18 PP
                                     homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
                                     
     UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
+}
+
+void parse04(void) { //command is 10X 04
+    int old_motion1=motion1.value.bool_value;
+    motion1.value.bool_value=command[2]&0x02;
+    if (motion1.value.bool_value!=old_motion1) 
+                                    homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(motion1.value.bool_value));
 }
 
 int CRC_OK(int len) {
@@ -334,6 +343,12 @@ homekit_accessory_t *accessories[] = {
                     &ota_trigger,
                     NULL
                 }),
+            HOMEKIT_SERVICE(MOTION_SENSOR,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "Motion"),
+                    &motion1,
+                    NULL
+                }),
             NULL
         }),
     NULL
@@ -346,7 +361,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.7\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.8\n");
 
     alarm_init();
     
