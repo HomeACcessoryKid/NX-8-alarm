@@ -180,18 +180,24 @@ void state_task(void *argv) {
 #define ENABLE_PIN 4
 #define MY_ID  0x1d8
 
-#define send_command(cmd) do{   UDPLUO("\nSEND         =>"); \
-                                for (int i=0;i<sizeof(cmd);i++) UDPLUO(" %02x",cmd[i]); \
+//#define send_command(cmd) do{   nx8bus_command(cmd,sizeof(cmd)); } while(0)
+#define send_command(cmd) do{   UDPLUO("\nSEND         => 1"); \
+                                for (int i=0;i<sizeof(cmd);i++) UDPLUO("%02x ",cmd[i]); \
                                 nx8bus_command(cmd,sizeof(cmd)); \
                             } while(0)
-int  pending_ack=0;
-char ack210[]={0x08, 0x44, 0x00, 0x4c, 0xa0};
+#define read_byte(data)   do{   while(1) { \
+                                    if (!nx8bus_available()) {vTaskDelay(1);continue;} \
+                                    data = nx8bus_read(); \
+                                } \
+                            } while(0) //must not monopolize CPU
 uint8_t command[20]; //assuming no command will be longer
+char ack210[]={0x08, 0x44, 0x00, 0x4c, 0xa0};
+int  pending_ack=0;
 
 int CRC_OK(int len) {
     int l=len;
-    command[l++]=nx8bus_read();
-    command[l++]=nx8bus_read();
+    read_byte(command[l++]);
+    read_byte(command[l++]);
 
     UDPLUO(" checked:");
     for (int i=0;i<l;i++) UDPLUO(" %02x",command[i]);
@@ -209,12 +215,13 @@ void receive_task(void *argv) {
 
     nx8bus_open(RX_PIN, TX_PIN, ENABLE_PIN);
     while (true) {
-        if (!nx8bus_available()) {vTaskDelay(1);continue;} //must not monopolize CPU
-        data = nx8bus_read();
+        if (send_ok) UDPLUO(" SEND_OK");
+        send_ok=0; //TODO replace by a semaphore
+        read_byte(data);
 
         if (data>0xff) {
             newtime=sdk_system_get_time()/1000;
-            sprintf(fill,"\n%d%4d%9d: ",send_ok,newtime-oldtime,newtime);
+            sprintf(fill,"\n%5d%9d: ",newtime-oldtime,newtime);
             oldtime=newtime;
         }
         UDPLUO("%s%02x", data>0xff?fill:" ", data);
@@ -236,62 +243,58 @@ void receive_task(void *argv) {
                 command[1]=data;
                 switch(data){
                     case 0x00: { //status 00
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 00.");
                     } break;
                     case 0x01: { //status 01
-                        for (i=2;i<12;i++)command[i]=nx8bus_read();
+                        for (i=2;i<12;i++) read_byte(command[i]);
                         if (CRC_OK(12)) UDPLUO(" status 01.");
                         //crunch command[] for message
                     } break;
                     case 0x02: { //status 02
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 02.");
                     } break;
                     case 0x04: { //status 04
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 04.");
                     } break;
                     case 0x05: { //status 05
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 05.");
                     } break;
                     case 0x06: { //status 06
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 06.");
                     } break;
                     case 0x07: { //status 07
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 07.");
                     } break;
                     case 0x08: { //status 08
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 08.");
                     } break;
                     case 0x09: { //status 09
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 09.");
                     } break;
                     case 0x0a: { //status 0a
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 0a.");
                     } break;
-                    case 0x0b: { //status 0a
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
-                        if (CRC_OK( 8)) UDPLUO(" status 0b.");
-                    } break;
-                    case 0x0c: { //status 0a
-                        for (i=2;i< 8;i++)command[i]=nx8bus_read();
+                    case 0x0c: { //status 0c
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK( 8)) UDPLUO(" status 0c.");
                     } break;
                     case 0x18: { //status 18
-                        for (i=2;i<10;i++)command[i]=nx8bus_read();
-                        if (command[2]==0 && CRC_OK(10)) UDPLUO(" status 18 00."); else UDPLUO(" status 18 ignored");
+                        for (i=2;i< 10;i++) read_byte(command[i]);
+                        if (command[2]==0 && CRC_OK(10)) UDPLUO(" status 18 00."); else UDPLUO(" status 18 %02x ignored",command[2]);
                     } break;
                     default: UDPLUO(" status unknown"); break; //unknown status message
                 } //switch data state 1
                 state=0; //ready for the next command because all commands read complete
-                send_ok=command[0]?0:1;
+                if (command[0]==0) send_ok=1; //TODO replace by a semaphore
             } break;  //status message 1st level
             case 2: { //message for me 1st level
                 command[1]=data;
@@ -360,7 +363,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.1\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.4\n");
 
     alarm_init();
     
