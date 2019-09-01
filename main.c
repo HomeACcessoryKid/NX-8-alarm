@@ -70,23 +70,6 @@ void target_set(homekit_value_t value) {
     homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
 }
 
-
-homekit_value_t pin_get() {
-    return HOMEKIT_INT(0);
-}
-void pin1_set(homekit_value_t value) {
-    UDPLSO("Pin1Set: %d\n", value.int_value);
-}
-void pin2_set(homekit_value_t value) {
-    UDPLSO("Pin2Set: %d\n", value.int_value);
-}
-void pin3_set(homekit_value_t value) {
-    UDPLSO("Pin3Set: %d\n", value.int_value);
-}
-void pin4_set(homekit_value_t value) {
-    UDPLSO("Pin4Set: %d\n", value.int_value);
-}
-
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_PIN1CODE HOMEKIT_CUSTOM_UUID("F0000011")
 #define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_PIN1CODE(_value, ...) \
     .type = HOMEKIT_CHARACTERISTIC_CUSTOM_PIN1CODE, \
@@ -144,10 +127,34 @@ void pin4_set(homekit_value_t value) {
     .value = HOMEKIT_INT_(_value), \
     ##__VA_ARGS__
 
+homekit_value_t pin_get();
+void pin1_set(homekit_value_t value);
+void pin2_set(homekit_value_t value);
+void pin3_set(homekit_value_t value);
+
 homekit_characteristic_t pin1 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN1CODE, 0, .setter=pin1_set, .getter=pin_get);
 homekit_characteristic_t pin2 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN2CODE, 0, .setter=pin2_set, .getter=pin_get);
 homekit_characteristic_t pin3 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN3CODE, 0, .setter=pin3_set, .getter=pin_get);
-homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0, .setter=pin4_set, .getter=pin_get);
+homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0,                   .getter=pin_get);
+
+homekit_value_t pin_get() {
+    UDPLUO("save digits to be used: %d %d %d %d",pin1.value.int_value,pin2.value.int_value,pin3.value.int_value,pin4.value.int_value);
+    int byte1=pin1.value.int_value+pin2.value.int_value*0x100;
+    int byte2=pin3.value.int_value+pin4.value.int_value*0x100;
+    UDPLUO(" PIN bytes %02x %02x\n",byte1,byte2);
+    return HOMEKIT_INT(9); 
+}
+void pin1_set(homekit_value_t value) {
+    UDPLUO("Pin1Set: %d\n", value.int_value);
+    pin1.value=value;
+}
+void pin2_set(homekit_value_t value) {
+    pin2.value=value;
+}
+void pin3_set(homekit_value_t value) {
+    UDPLUO("Pin3Set: %d\n", value.int_value);
+}
+
 
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
@@ -161,19 +168,6 @@ void identify(homekit_value_t _value) {
 /* ============== END HOMEKIT CHARACTERISTIC DECLARATIONS ================================================================= */
 
 
-void state_task(void *argv) {
-    int i;
-    while(1) {
-        for (i=0;i<2;i++) {
-            vTaskDelay(10000/portTICK_PERIOD_MS);
-            UDPLUS("alarm=>%d\n",i);
-            alarmtype.value.int_value=i;
-            homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
-            if (i) current.value.int_value=4; else current.value.int_value=currentstate;
-            homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
-        }
-    }
-}
 #include <nx8bus.h>
 #define RX_PIN 5
 #define TX_PIN 2
@@ -193,6 +187,34 @@ void state_task(void *argv) {
 uint8_t command[20]; //assuming no command will be longer
 char ack210[]={0x08, 0x44, 0x00, 0x4c, 0xa0};
 int  pending_ack=0;
+int  armed=0, stay=0, alarm=0;
+
+void parse18(void) { //command is 10X 18 PP
+    int old_current =   current.value.int_value;
+    int old_target  =    target.value.int_value;
+    int old_alarm   = alarmtype.value.int_value;
+
+    armed=command[3]&0x40;
+    alarm=command[4]&0x01;
+    stay =command[5]&0x04;
+    
+    if (armed) {
+        if (stay) currentstate=2; else currentstate=1;
+    } else {
+        currentstate=3;
+    }
+    current.value.int_value = alarm ? 4 : currentstate;
+    if (  current.value.int_value!=old_current) 
+                                    homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
+    target.value.int_value=current.value.int_value;
+    if (   target.value.int_value!=old_target )
+                                    homekit_characteristic_notify(&target,   HOMEKIT_UINT8(   target.value.int_value));
+    alarmtype.value.int_value=alarm;
+    if (alarmtype.value.int_value!=old_alarm  )
+                                    homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
+                                    
+    UDPLUO("ar%d al%d st%d cu%d at%d",armed,alarm,stay,current.value.int_value,alarmtype.value.int_value);
+}
 
 int CRC_OK(int len) {
     int l=len;
@@ -242,54 +264,27 @@ void receive_task(void *argv) {
             case 1: { //status message 1st level
                 command[1]=data;
                 switch(data){
-                    case 0x00: { //status 00
+                    case 0x04: { //status 04 contains triggered zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 00.");
+                        if (CRC_OK( 8)) UDPLUO(" status 04.");
+                    } break;
+                    case 0x07: { //status 07 contains blocked zones
+                        for (i=2;i< 8;i++) read_byte(command[i]);
+                        if (CRC_OK( 8)) UDPLUO(" status 07.");
+                    } break;
+                    case 0x18: { //status 18 contains partition status
+                        for (i=2;i< 10;i++) read_byte(command[i]);
+                        if (command[2]==0 && CRC_OK(10)) {UDPLUO(" status 18 00.");parse18();}
+                        else {UDPLUO(" %02x skip",command[2]); read_byte(command[i++]); read_byte(command[i]);}
+                    } break;
+                    case 0x00: case 0x02: case 0x03: case 0x05: case 0x06:   //status 00,02,03,05,06
+                    case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: { //status 08-0c
+                        for (i=2;i< 8;i++) read_byte(command[i]);
+                        if (CRC_OK( 8)) UDPLUO(" status %02x.",command[1]);
                     } break;
                     case 0x01: { //status 01
                         for (i=2;i<12;i++) read_byte(command[i]);
                         if (CRC_OK(12)) UDPLUO(" status 01.");
-                        //crunch command[] for message
-                    } break;
-                    case 0x02: { //status 02
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 02.");
-                    } break;
-                    case 0x04: { //status 04
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 04.");
-                    } break;
-                    case 0x05: { //status 05
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 05.");
-                    } break;
-                    case 0x06: { //status 06
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 06.");
-                    } break;
-                    case 0x07: { //status 07
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 07.");
-                    } break;
-                    case 0x08: { //status 08
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 08.");
-                    } break;
-                    case 0x09: { //status 09
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 09.");
-                    } break;
-                    case 0x0a: { //status 0a
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 0a.");
-                    } break;
-                    case 0x0c: { //status 0c
-                        for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 0c.");
-                    } break;
-                    case 0x18: { //status 18
-                        for (i=2;i< 10;i++) read_byte(command[i]);
-                        if (command[2]==0 && CRC_OK(10)) UDPLUO(" status 18 00."); else UDPLUO(" status 18 %02x ignored",command[2]);
                     } break;
                     default: UDPLUO(" status unknown"); break; //unknown status message
                 } //switch data state 1
@@ -320,7 +315,6 @@ void receive_task(void *argv) {
 
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-//    xTaskCreate(state_task, "State", 512, NULL, 1, NULL);
 }
 
 homekit_accessory_t *accessories[] = {
@@ -363,7 +357,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.5\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.6\n");
 
     alarm_init();
     
