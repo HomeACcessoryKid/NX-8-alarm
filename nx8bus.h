@@ -1,7 +1,7 @@
 /** (c) 2019 HomeACcessoryKid@gmail.com
  * This is a driver for the NX8 bus based on a 4512 bus driver with a fixed address selected
- * the selected input is connected to a NPN driver with 10k colector to 12V bus power and by a base 220kohm to the tx pin 
- * the inhinit pin 15 is connected with NPN driver to the enable pin
+ * the selected input is connected to a NPN driver with 10k collector to 12V bus power and by a base 220kohm to the tx pin 
+ * the inhibit pin 15 is connected with NPN driver to the enable pin
  * the Z output 14 is connected to the bus dataline
  * the rx pin is reading the bus by a divider of 10k to ground and 33k to the dataline
  * some credit goes to the softuart writers on which this is loosly based
@@ -12,10 +12,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
+/**
+ * Calculate the CRC over a character string of len
+ * @param data character string
+ * @param len  number of bytes in that string
+ * @return 16bit CRC
+ */
+uint16_t nx8bus_CRC(const uint8_t * data, int len);
+
 /**
  * Initialize nx8 bus and setup interrupt handler
  * @param rx_pin GPIO pin number for RX
  * @param tx_pin GPIO pin number for TX
+ * @param enable GPIO pin number for enable
  * @return true if no errors occured otherwise false
  */
 bool nx8bus_open(uint8_t rx_pin, uint8_t tx_pin, uint8_t enable);

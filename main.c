@@ -216,11 +216,12 @@ void parse04(void) { //command is 10X 04
 
 int CRC_OK(int len) {
     int l=len;
+    uint16_t crc=nx8bus_CRC(command,len);
     read_byte(command[l++]);
     read_byte(command[l++]);
-
     UDPLUO(" checked:");
     for (int i=0;i<l;i++) UDPLUO(" %02x",command[i]);
+    UDPLUO(" CRC=%04x",crc);
     return 1; //TODO verify CRC
 }
 
@@ -361,7 +362,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.9\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.10\n");
 
     alarm_init();
     

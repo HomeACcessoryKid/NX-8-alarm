@@ -21,6 +21,27 @@ uint8_t rx_pin, tx_pin, enable_pin;
 uint16_t bit_time=250; //4000BAUD
 volatile nx8bus_buffer_t buffer;
 
+uint16_t nx8bus_CRC(const uint8_t * data, int len) { //https://en.wikipedia.org/wiki/Fletcher%27s_checksum
+    uint32_t c0, c1;
+    unsigned int i;
+
+    for (c0 = c1 = 0; len >= 5802; len -= 5802) {
+            for (i = 0; i < 5802; ++i) {
+                    c0 = c0 + *data++;
+                    c1 = c1 + c0;
+            }
+            c0 = c0 % 255;
+            c1 = c1 % 255;
+    }
+    for (i = 0; i < len; ++i) {
+            c0 = c0 + *data++;
+            c1 = c1 + c0;
+    }
+    c0 = c0 % 255;
+    c1 = c1 % 255;
+    return (c1 << 8 | c0);
+}
+
 // GPIO interrupt handler
 static void handle_rx(uint8_t gpio_num) {
     // Disable interrupt
@@ -99,7 +120,7 @@ void nx8bus_command(char * cc, uint8_t len) {
         if (!i) ss+=0x100;
         nx8bus_put(ss);
     }
-    //put CRC bytes
+    //TODO put CRC bytes
     sdk_os_delay_us(bit_time);
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_EDGE_NEG, handle_rx);
 }
