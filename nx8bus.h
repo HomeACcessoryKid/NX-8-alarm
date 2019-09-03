@@ -32,10 +32,10 @@ bool nx8bus_open(uint8_t rx_pin, uint8_t tx_pin, uint8_t enable);
 
 /**
  * Put command to nx8bus uart
- * @param cc 8 bit symbols which create a command plus content, without CRC
- * @param len number of symbols without CRC
+ * @param data 8 bit symbols which create a command plus content, without CRC
+ * @param len  number of symbols without CRC
  */
-void nx8bus_command(char * cc, uint8_t len);
+void nx8bus_command(uint8_t * data, uint8_t len);
 
 /**
  * Check if data is available

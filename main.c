@@ -176,7 +176,7 @@ void identify(homekit_value_t _value) {
                                 } \
                             } while(0) //must not monopolize CPU
 uint8_t command[20]; //assuming no command will be longer
-char ack210[]={0x08, 0x44, 0x00, 0x4c, 0xa0};
+uint8_t ack210[]={0x08, 0x44, 0x00};
 int  pending_ack=0;
 int  armed=0, stay=0, alarm=0;
 
@@ -222,7 +222,7 @@ int CRC_OK(int len) {
     UDPLUO(" checked:");
     for (int i=0;i<l;i++) UDPLUO(" %02x",command[i]);
     UDPLUO(" CRC=%04x",crc);
-    return 1; //TODO verify CRC
+    if (command[l-2]==crc%256 && command[l-1]==crc/256) return 1; else {return 0; UDPLUO(" failed!");}
 }
 
 void receive_task(void *argv) {
@@ -362,7 +362,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.10\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.11\n");
 
     alarm_init();
     

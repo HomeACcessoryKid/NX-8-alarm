@@ -111,16 +111,19 @@ void nx8bus_put(uint16_t cc) {
     gpio_write(tx_pin, 1); //idle state of TX
 }
 
-void nx8bus_command(char * cc, uint8_t len) {
+void nx8bus_command(uint8_t * data, uint8_t len) {
     uint16_t ss;    
+    uint16_t crc;    
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_NONE, handle_rx); //we must be half duplex else read interrupt will stop us
     sdk_os_delay_us(bit_time);
     for (int i=0;i<len;i++){
-        ss=cc[i]; //add CRC update
+        ss=data[i];
         if (!i) ss+=0x100;
         nx8bus_put(ss);
     }
-    //TODO put CRC bytes
+    crc=nx8bus_CRC(data,len);
+    nx8bus_put(crc%256);
+    nx8bus_put(crc/256);
     sdk_os_delay_us(bit_time);
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_EDGE_NEG, handle_rx);
 }
