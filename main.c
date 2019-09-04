@@ -377,7 +377,7 @@ homekit_accessory_t *accessories[] = {
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
                 .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-sensor1"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor1"),
                     &manufacturer,
                     &serial,
                     &model,
@@ -398,7 +398,7 @@ homekit_accessory_t *accessories[] = {
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
                 .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-sensor2"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor2"),
                     &manufacturer,
                     &serial,
                     &model,
@@ -413,6 +413,90 @@ homekit_accessory_t *accessories[] = {
                 }),
             NULL
         }),
+    HOMEKIT_ACCESSORY(
+        .id=40,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor3"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
+                    &motion3,
+                    NULL
+                }),
+            NULL
+        }),
+    HOMEKIT_ACCESSORY(
+        .id=50,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor4"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
+                    &motion4,
+                    NULL
+                }),
+            NULL
+        }),
+    HOMEKIT_ACCESSORY(
+        .id=60,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor5"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
+                    &motion5,
+                    NULL
+                }),
+            NULL
+        }),
+    HOMEKIT_ACCESSORY(
+        .id=70,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor6"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
+                    &motion6,
+                    NULL
+                }),
+            NULL
+        }),
     NULL
 };
 
@@ -423,7 +507,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.12\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.13\n");
 
     alarm_init();
     
