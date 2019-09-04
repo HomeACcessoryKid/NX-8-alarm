@@ -22,17 +22,9 @@ uint16_t bit_time=250; //4000BAUD
 volatile nx8bus_buffer_t buffer;
 
 uint16_t nx8bus_CRC(const uint8_t * data, int len) { //https://en.wikipedia.org/wiki/Fletcher%27s_checksum
-    uint32_t c0, c1;
-    unsigned int i;
+    uint32_t c0=0, c1=0;
+    int i;
 
-    for (c0 = c1 = 0; len >= 5802; len -= 5802) {
-            for (i = 0; i < 5802; ++i) {
-                    c0 = c0 + *data++;
-                    c1 = c1 + c0;
-            }
-            c0 = c0 % 255;
-            c1 = c1 % 255;
-    }
     for (i = 0; i < len; ++i) {
             c0 = c0 + *data++;
             c1 = c1 + c0;

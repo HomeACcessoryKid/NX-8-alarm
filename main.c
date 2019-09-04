@@ -146,6 +146,11 @@ homekit_value_t pin_get() {
 }
 
 homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion2 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion3 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion4 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion5 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
@@ -209,9 +214,29 @@ void parse18(void) { //command is 10X 18 PP
 
 void parse04(void) { //command is 10X 04
     int old_motion1=motion1.value.bool_value;
-    motion1.value.bool_value=command[2]&0x02;
+    motion1.value.bool_value=command[2]&0x01;
     if (motion1.value.bool_value!=old_motion1) 
                                     homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(motion1.value.bool_value));
+    int old_motion2=motion2.value.bool_value;
+    motion2.value.bool_value=command[2]&0x02;
+    if (motion2.value.bool_value!=old_motion2) 
+                                    homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(motion2.value.bool_value));
+    int old_motion3=motion3.value.bool_value;
+    motion3.value.bool_value=command[2]&0x04;
+    if (motion3.value.bool_value!=old_motion3) 
+                                    homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(motion3.value.bool_value));
+    int old_motion4=motion4.value.bool_value;
+    motion4.value.bool_value=command[2]&0x08;
+    if (motion4.value.bool_value!=old_motion4) 
+                                    homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(motion4.value.bool_value));
+    int old_motion5=motion5.value.bool_value;
+    motion5.value.bool_value=command[2]&0x10;
+    if (motion5.value.bool_value!=old_motion5) 
+                                    homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(motion5.value.bool_value));
+    int old_motion6=motion6.value.bool_value;
+    motion6.value.bool_value=command[2]&0x20;
+    if (motion6.value.bool_value!=old_motion6) 
+                                    homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(motion6.value.bool_value));
 }
 
 int CRC_OK(int len) {
@@ -344,10 +369,46 @@ homekit_accessory_t *accessories[] = {
                     &ota_trigger,
                     NULL
                 }),
-            HOMEKIT_SERVICE(MOTION_SENSOR,
+            NULL
+        }),
+    HOMEKIT_ACCESSORY(
+        .id=20,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
                 .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Motion"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-sensor1"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
                     &motion1,
+                    NULL
+                }),
+            NULL
+        }),
+    HOMEKIT_ACCESSORY(
+        .id=30,
+        .category=homekit_accessory_category_sensor,
+        .services=(homekit_service_t*[]){
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
+                .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-sensor2"),
+                    &manufacturer,
+                    &serial,
+                    &model,
+                    &revision,
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+                    NULL
+                }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
+                .characteristics=(homekit_characteristic_t*[]){
+                    &motion2,
                     NULL
                 }),
             NULL
@@ -362,7 +423,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.11\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.12\n");
 
     alarm_init();
     
