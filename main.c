@@ -19,6 +19,7 @@
 #include <esp8266.h>
 #include <espressif/esp_common.h> //find us-delay support
 #include <FreeRTOS.h>
+#include <timers.h>
 #include <task.h>
 #include <homekit/homekit.h>
 #include <homekit/characteristics.h>
@@ -32,6 +33,8 @@
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
 int currentstate=INITIALCURRENT;
 int pinbyte1=0,pinbyte2=0;
+int old_motion2;
+TimerHandle_t motionTimer2;
 // add this section to make your device OTA capable
 // create the extra characteristic &ota_trigger, at the end of the primary service (before the NULL)
 // it can be used in Eve, which will show it, where Home does not
@@ -212,15 +215,19 @@ void parse18(void) { //command is 10X 18 PP
     UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
 }
 
+void motion2timer( TimerHandle_t xTimer ) {
+    if (old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=0));
+}
+
 void parse04(void) { //command is 10X 04
     int old_motion1=motion1.value.bool_value;
     motion1.value.bool_value=command[2]&0x01;
     if (motion1.value.bool_value!=old_motion1) 
                                     homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(motion1.value.bool_value));
-    int old_motion2=motion2.value.bool_value;
-    motion2.value.bool_value=command[2]&0x02;
-    if (motion2.value.bool_value!=old_motion2) 
-                                    homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(motion2.value.bool_value));
+    if (command[2]&0x02) {
+        if (!old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=1));
+        xTimerReset(motionTimer2,10);
+    }
     int old_motion3=motion3.value.bool_value;
     motion3.value.bool_value=command[2]&0x04;
     if (motion3.value.bool_value!=old_motion3) 
@@ -339,6 +346,7 @@ void receive_task(void *argv) {
 
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
+    motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(20000),pdFALSE,NULL,motion2timer);
 }
 
 homekit_accessory_t *accessories[] = {
@@ -507,7 +515,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.0.13\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.0.14\n");
 
     alarm_init();
     
