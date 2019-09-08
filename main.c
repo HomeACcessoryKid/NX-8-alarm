@@ -155,6 +155,27 @@ homekit_characteristic_t motion4 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 homekit_characteristic_t motion5 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 
+#define HOMEKIT_CHARACTERISTIC_CUSTOM_RETENTION HOMEKIT_CUSTOM_UUID("F0000007")
+#define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_RETENTION(_value, ...) \
+    .type = HOMEKIT_CHARACTERISTIC_CUSTOM_RETENTION, \
+    .description = "RetentionTime (s)", \
+    .format = homekit_format_uint8, \
+    .min_value=(float[])   {1}, \
+    .max_value=(float[]) {240}, \
+    .permissions = homekit_permissions_paired_read \
+                 | homekit_permissions_paired_write \
+                 | homekit_permissions_notify, \
+    .value = HOMEKIT_UINT8_(_value), \
+    ##__VA_ARGS__
+
+void retention2_set(homekit_value_t value);
+homekit_characteristic_t retention2=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention2_set);
+void retention2_set(homekit_value_t value) {
+    UDPLUS("Retention2 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer2,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention2.value=value;
+}
+
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
 // }
@@ -226,7 +247,7 @@ void parse04(void) { //command is 10X 04
                                     homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(motion1.value.bool_value));
     if (command[2]&0x02) {
         if (!old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=1));
-        xTimerReset(motionTimer2,10);
+        xTimerReset(motionTimer2,100);
     }
     int old_motion3=motion3.value.bool_value;
     motion3.value.bool_value=command[2]&0x04;
@@ -346,7 +367,7 @@ void receive_task(void *argv) {
 
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-    motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(20000),pdFALSE,NULL,motion2timer);
+    motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion2timer);
 }
 
 homekit_accessory_t *accessories[] = {
@@ -419,6 +440,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor2"),
                     &motion2,
+                    &retention2,
                     NULL
                 }),
             NULL
@@ -521,13 +543,13 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.1\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.2\n");
 
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
                                       &model.value.string_value,&revision.value.string_value);
-    c_hash=1001; revision.value.string_value="0.1.1"; //cheat line
+    //c_hash=1001; revision.value.string_value="0.1.1"; //cheat line
     config.accessories[0]->config_number=c_hash;
     
     homekit_server_init(&config);
