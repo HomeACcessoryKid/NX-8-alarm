@@ -1,12 +1,9 @@
 /*  (c) 2019 HomeAccessoryKid
- *  This example drives a basic curtain motor.
+ *  This example makes an NetworX NX-8 alarm system homekit enabled.
+ *  The alarm can switch between off, away and sleep
+ *  the individual sensors are set out as individual motion sensors accessories
  *  It uses any ESP8266 with as little as 1MB flash. 
- *  GPIO-0 reads a button for manual instructions
- *  GPIO-5 instructs a relay to drive the motor
- *  GPIO-4 instructs the direction=polarity of the motor by means of two relays: up or down
- *  obviously your own motor setup might be using different ways of providing these functions
- *  a HomeKit custom integer value can be set to define the time needed for 100% travel
- *  this will be interpolated to set values between 0% and 100%
+ *  read nx8bus.h for more intructions
  *  UDPlogger is used to have remote logging
  *  LCM is enabled in case you want remote updates
  */
@@ -20,6 +17,7 @@
 #include <espressif/esp_common.h> //find us-delay support
 #include <FreeRTOS.h>
 #include <timers.h>
+#include <semphr.h>
 #include <task.h>
 #include <homekit/homekit.h>
 #include <homekit/characteristics.h>
@@ -27,12 +25,23 @@
 #include "lwip/api.h"
 #include <wifi_config.h>
 #include <udplogger.h>
+#include <nx8bus.h>
+#define RX_PIN 5
+#define TX_PIN 2
+#define ENABLE_PIN 4
+#define MY_ID  0xd8
 
-#define INITIALCURRENT 0
-
+uint8_t command[20]; //assuming no command will be longer
+uint8_t ack210[]={0x08, 0x44, 0x00};
+uint8_t  sleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; //this is button 0
+uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; //this is button 2
+uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; //still must set off[5] and off[6] to pin bytes
+SemaphoreHandle_t send_ok;
+SemaphoreHandle_t acked;
+int  armed=0, stay=0, alarm=0;
+#define           INITIALCURRENT 3
+int  currentstate=INITIALCURRENT;
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
-int currentstate=INITIALCURRENT;
-int pinbyte1=0,pinbyte2=0;
 // add this section to make your device OTA capable
 // create the extra characteristic &ota_trigger, at the end of the primary service (before the NULL)
 // it can be used in Eve, which will show it, where Home does not
@@ -51,27 +60,10 @@ homekit_characteristic_t revision     = HOMEKIT_CHARACTERISTIC_(FIRMWARE_REVISIO
 //    config.accessories[0]->config_number=c_hash;
 // end of OTA add-in instructions
 
-homekit_value_t target_get();
-void target_set(homekit_value_t value);
-homekit_characteristic_t target       = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_TARGET_STATE,  0, .getter=target_get, .setter=target_set);
-homekit_characteristic_t current      = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_CURRENT_STATE, INITIALCURRENT                           );
-homekit_characteristic_t alarmtype    = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM_TYPE,    0,                                       );
+homekit_characteristic_t target       = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_TARGET_STATE,  INITIALCURRENT);
+homekit_characteristic_t current      = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_CURRENT_STATE, INITIALCURRENT);
+homekit_characteristic_t alarmtype    = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM_TYPE,    0,            );
 
-
-homekit_value_t target_get() {
-    return HOMEKIT_UINT8(target.value.int_value);
-}
-void target_set(homekit_value_t value) {
-    if (value.format != homekit_format_uint8) {
-        UDPLUS("Invalid target-value format: %d\n", value.format);
-        return;
-    }
-    UDPLUS("Target:%3d\n",value.int_value);
-    target.value=value;
-    //send the right command and verify the result
-//     current.value.int_value=value.int_value;
-//     homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
-}
 
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_PIN1CODE HOMEKIT_CUSTOM_UUID("F0000011")
 #define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_PIN1CODE(_value, ...) \
@@ -138,11 +130,11 @@ homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0, .get
 
 homekit_value_t pin_get() {
     if (pin1.value.int_value || pin2.value.int_value || pin3.value.int_value || pin4.value.int_value  ) {
-        pinbyte1=pin1.value.int_value+pin2.value.int_value*0x10;
-        pinbyte2=pin3.value.int_value+pin4.value.int_value*0x10;
+        off[5]=pin1.value.int_value+pin2.value.int_value*0x10;
+        off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
         pin1.value.int_value=0; pin2.value.int_value=0; pin3.value.int_value=0; pin4.value.int_value=0;
     }
-    UDPLUO("\nPIN bytes %02x %02x\n",pinbyte1,pinbyte2);
+    UDPLUO("\nPIN bytes %02x %02x\n",off[5],off[6]);
     return HOMEKIT_INT(0); 
 }
 
@@ -224,12 +216,6 @@ void identify(homekit_value_t _value) {
 /* ============== END HOMEKIT CHARACTERISTIC DECLARATIONS ================================================================= */
 
 
-#include <nx8bus.h>
-#define RX_PIN 5
-#define TX_PIN 2
-#define ENABLE_PIN 4
-#define MY_ID  0x1d8
-
 //#define send_command(cmd) do{   nx8bus_command(cmd,sizeof(cmd)); } while(0)
 #define send_command(cmd) do{   UDPLUO("\n SEND                       => "); \
                                 for (int i=0;i<sizeof(cmd);i++) UDPLUO(" %02x",cmd[i]); \
@@ -240,14 +226,35 @@ void identify(homekit_value_t _value) {
                                     data = nx8bus_read(); break; \
                                 } \
                             } while(0) //must not monopolize CPU
-uint8_t command[20]; //assuming no command will be longer
-uint8_t ack210[]={0x08, 0x44, 0x00};
-int  pending_ack=0;
-int  armed=0, stay=0, alarm=0;
+
+void target_task(void *argv) {
+    int new_target,old_target=INITIALCURRENT;
+    //if pincode=0000 then wait
+    while(1) {
+        if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
+            UDPLUO(" SEND_OK");
+            if ((new_target=target.value.int_value)!=old_target) {
+                UDPLUO(" Target=%d",new_target);
+                switch(new_target) {
+                    case 1: send_command( away);
+                      break;
+                    case 2: send_command(sleep);
+                      break;
+                    case 3: if (currentstate<3) send_command(off);
+                      break;//ONLY DO THIS IF SURE ALARM IS ARMED NOW else it actually arms the alarm instead of turning it off
+                    default: break;
+                }
+                if (xSemaphoreTake(acked,pdMS_TO_TICKS(100))) { //100ms should be enough
+                    old_target=new_target;
+                    homekit_characteristic_notify(&target,HOMEKIT_UINT8(new_target));
+                }
+            }
+        }
+    }
+}
 
 void parse18(void) { //command is 10X 18 PP
     int old_current =   current.value.int_value;
-    int old_target  =    target.value.int_value;
     int old_alarm   = alarmtype.value.int_value;
 
     armed=command[3]&0x40;
@@ -262,9 +269,6 @@ void parse18(void) { //command is 10X 18 PP
     current.value.int_value = alarm ? 4 : currentstate;
     if (  current.value.int_value!=old_current) 
                                     homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
-    target.value.int_value=current.value.int_value;
-    if (   target.value.int_value!=old_target )
-                                    homekit_characteristic_notify(&target,   HOMEKIT_UINT8(   target.value.int_value));
     alarmtype.value.int_value=alarm;
     if (alarmtype.value.int_value!=old_alarm  )
                                     homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
@@ -330,7 +334,7 @@ int CRC_OK(int len) {
 }
 
 void receive_task(void *argv) {
-    int state=0, send_ok=0;
+    int state=0;
     uint16_t data;
     char fill[20];
     uint32_t newtime, oldtime;
@@ -340,9 +344,8 @@ void receive_task(void *argv) {
 
     nx8bus_open(RX_PIN, TX_PIN, ENABLE_PIN);
     while (true) {
-        if (send_ok) UDPLUO(" SEND_OK");
-        send_ok=0; //TODO replace by a semaphore
         read_byte(data);
+        xSemaphoreTake(send_ok,0);
 
         if (data>0xff) {
             newtime=sdk_system_get_time()/1000;
@@ -359,7 +362,7 @@ void receive_task(void *argv) {
                     case 0x104: case 0x105: case 0x106: case 0x107: { //status messages
                         state=1;
                     } break;      //status messages
-                    case MY_ID: { //message for me
+                    case MY_ID+0x100: { //message for me
                         state=2;
                     } break;      //message for me
                 } //switch data state 0
@@ -392,7 +395,7 @@ void receive_task(void *argv) {
                     default: UDPLUO(" status unknown"); break; //unknown status message
                 } //switch data state 1
                 state=0; //ready for the next command because all commands read complete
-                if (command[0]==0) send_ok=1; //TODO replace by a semaphore
+                if (command[0]==0) xSemaphoreGive(send_ok);
             } break;  //status message 1st level
             case 2: { //message for me 1st level
                 command[1]=data;
@@ -401,7 +404,7 @@ void receive_task(void *argv) {
                         if (CRC_OK(2)) send_command(ack210);
                     } break;
                     case 0x40: { //2 40 is 108 command ACK
-                        if (CRC_OK(2)) pending_ack=0;
+                        if (CRC_OK(2)) xSemaphoreGive(acked);
                     } break;
                     default: { //unknown command for me
                     } break;
@@ -417,7 +420,10 @@ void receive_task(void *argv) {
 }
 
 void alarm_init() {
+    send_ok = xSemaphoreCreateBinary();
+    acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
+    xTaskCreate( target_task,  "target", 512, NULL, 1, NULL);
     motionTimer1=xTimerCreate("mt1",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion1timer);
     motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion2timer);
     motionTimer3=xTimerCreate("mt3",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion3timer);
@@ -604,7 +610,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.3\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.4\n");
 
     alarm_init();
     
