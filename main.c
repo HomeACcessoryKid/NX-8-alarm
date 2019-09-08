@@ -380,7 +380,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=2,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -402,7 +402,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=3,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -424,7 +424,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=4,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -446,7 +446,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=5,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -468,7 +468,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=6,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -490,7 +490,7 @@ homekit_accessory_t *accessories[] = {
             NULL
         }),
     HOMEKIT_ACCESSORY(
-        .id=1,
+        .id=7,
         .category=homekit_accessory_category_sensor,
         .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
@@ -521,13 +521,13 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.0\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.1\n");
 
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
                                       &model.value.string_value,&revision.value.string_value);
-    //c_hash=1; revision.value.string_value="0.0.1"; //cheat line
+    c_hash=1001; revision.value.string_value="0.1.1"; //cheat line
     config.accessories[0]->config_number=c_hash;
     
     homekit_server_init(&config);
