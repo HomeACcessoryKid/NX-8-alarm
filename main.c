@@ -33,8 +33,6 @@
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
 int currentstate=INITIALCURRENT;
 int pinbyte1=0,pinbyte2=0;
-int old_motion2;
-TimerHandle_t motionTimer2;
 // add this section to make your device OTA capable
 // create the extra characteristic &ota_trigger, at the end of the primary service (before the NULL)
 // it can be used in Eve, which will show it, where Home does not
@@ -148,13 +146,6 @@ homekit_value_t pin_get() {
     return HOMEKIT_INT(0); 
 }
 
-homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion2 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion3 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion4 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion5 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_RETENTION HOMEKIT_CUSTOM_UUID("F0000007")
 #define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_RETENTION(_value, ...) \
     .type = HOMEKIT_CHARACTERISTIC_CUSTOM_RETENTION, \
@@ -168,12 +159,57 @@ homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
     .value = HOMEKIT_UINT8_(_value), \
     ##__VA_ARGS__
 
+//TODO turn all these sensor bits into several macros
+int old_motion1,old_motion2,old_motion3,old_motion4,old_motion5,old_motion6;
+TimerHandle_t motionTimer1,motionTimer2,motionTimer3,motionTimer4,motionTimer5,motionTimer6;
+homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion2 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion3 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion4 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion5 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
+
+void retention1_set(homekit_value_t value);
 void retention2_set(homekit_value_t value);
+void retention3_set(homekit_value_t value);
+void retention4_set(homekit_value_t value);
+void retention5_set(homekit_value_t value);
+void retention6_set(homekit_value_t value);
+homekit_characteristic_t retention1=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention1_set);
 homekit_characteristic_t retention2=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention2_set);
+homekit_characteristic_t retention3=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention3_set);
+homekit_characteristic_t retention4=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention4_set);
+homekit_characteristic_t retention5=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention5_set);
+homekit_characteristic_t retention6=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention6_set);
+void retention1_set(homekit_value_t value) {
+    UDPLUS("Retention1 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer1,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention1.value=value;
+}
 void retention2_set(homekit_value_t value) {
     UDPLUS("Retention2 time: %d\n", value.int_value);
     xTimerChangePeriod(motionTimer2,pdMS_TO_TICKS(value.int_value*1000),100);
     retention2.value=value;
+}
+void retention3_set(homekit_value_t value) {
+    UDPLUS("Retention3 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer3,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention3.value=value;
+}
+void retention4_set(homekit_value_t value) {
+    UDPLUS("Retention4 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer4,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention4.value=value;
+}
+void retention5_set(homekit_value_t value) {
+    UDPLUS("Retention5 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer5,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention5.value=value;
+}
+void retention6_set(homekit_value_t value) {
+    UDPLUS("Retention6 time: %d\n", value.int_value);
+    xTimerChangePeriod(motionTimer6,pdMS_TO_TICKS(value.int_value*1000),100);
+    retention6.value=value;
 }
 
 // void identify_task(void *_args) {
@@ -236,35 +272,50 @@ void parse18(void) { //command is 10X 18 PP
     UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
 }
 
+void motion1timer( TimerHandle_t xTimer ) {
+    if (old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=0));
+}
 void motion2timer( TimerHandle_t xTimer ) {
     if (old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=0));
 }
+void motion3timer( TimerHandle_t xTimer ) {
+    if (old_motion3) homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(old_motion3=motion3.value.bool_value=0));
+}
+void motion4timer( TimerHandle_t xTimer ) {
+    if (old_motion4) homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(old_motion4=motion4.value.bool_value=0));
+}
+void motion5timer( TimerHandle_t xTimer ) {
+    if (old_motion5) homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(old_motion5=motion5.value.bool_value=0));
+}
+void motion6timer( TimerHandle_t xTimer ) {
+    if (old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=0));
+}
 
 void parse04(void) { //command is 10X 04
-    int old_motion1=motion1.value.bool_value;
-    motion1.value.bool_value=command[2]&0x01;
-    if (motion1.value.bool_value!=old_motion1) 
-                                    homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(motion1.value.bool_value));
-    if (command[2]&0x02) {
+    if (command[2]&(1<<(1-1))) {
+        if (!old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=1));
+        xTimerReset(motionTimer1,100);
+    }
+    if (command[2]&(1<<(2-1))) {
         if (!old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=1));
         xTimerReset(motionTimer2,100);
     }
-    int old_motion3=motion3.value.bool_value;
-    motion3.value.bool_value=command[2]&0x04;
-    if (motion3.value.bool_value!=old_motion3) 
-                                    homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(motion3.value.bool_value));
-    int old_motion4=motion4.value.bool_value;
-    motion4.value.bool_value=command[2]&0x08;
-    if (motion4.value.bool_value!=old_motion4) 
-                                    homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(motion4.value.bool_value));
-    int old_motion5=motion5.value.bool_value;
-    motion5.value.bool_value=command[2]&0x10;
-    if (motion5.value.bool_value!=old_motion5) 
-                                    homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(motion5.value.bool_value));
-    int old_motion6=motion6.value.bool_value;
-    motion6.value.bool_value=command[2]&0x20;
-    if (motion6.value.bool_value!=old_motion6) 
-                                    homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(motion6.value.bool_value));
+    if (command[2]&(1<<(3-1))) {
+        if (!old_motion3) homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(old_motion3=motion3.value.bool_value=1));
+        xTimerReset(motionTimer3,100);
+    }
+    if (command[2]&(1<<(4-1))) {
+        if (!old_motion4) homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(old_motion4=motion4.value.bool_value=1));
+        xTimerReset(motionTimer4,100);
+    }
+    if (command[2]&(1<<(5-1))) {
+        if (!old_motion5) homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(old_motion5=motion5.value.bool_value=1));
+        xTimerReset(motionTimer5,100);
+    }
+    if (command[2]&(1<<(6-1))) {
+        if (!old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=1));
+        xTimerReset(motionTimer6,100);
+    }
 }
 
 int CRC_OK(int len) {
@@ -367,7 +418,12 @@ void receive_task(void *argv) {
 
 void alarm_init() {
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
+    motionTimer1=xTimerCreate("mt1",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion1timer);
     motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion2timer);
+    motionTimer3=xTimerCreate("mt3",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion3timer);
+    motionTimer4=xTimerCreate("mt4",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion4timer);
+    motionTimer5=xTimerCreate("mt5",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion5timer);
+    motionTimer6=xTimerCreate("mt6",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion6timer);
 }
 
 homekit_accessory_t *accessories[] = {
@@ -418,6 +474,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor1"),
                     &motion1,
+                    &retention1,
                     NULL
                 }),
             NULL
@@ -463,6 +520,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor3"),
                     &motion3,
+                    &retention3,
                     NULL
                 }),
             NULL
@@ -485,6 +543,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor4"),
                     &motion4,
+                    &retention4,
                     NULL
                 }),
             NULL
@@ -507,6 +566,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor5"),
                     &motion5,
+                    &retention5,
                     NULL
                 }),
             NULL
@@ -529,6 +589,7 @@ homekit_accessory_t *accessories[] = {
                 .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "Sensor6"),
                     &motion6,
+                    &retention6,
                     NULL
                 }),
             NULL
@@ -543,7 +604,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.2\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.3\n");
 
     alarm_init();
     
