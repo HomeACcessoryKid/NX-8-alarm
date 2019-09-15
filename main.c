@@ -40,6 +40,7 @@ SemaphoreHandle_t send_ok;
 SemaphoreHandle_t acked;
 #define           INITIALCURRENT 3
 int  currentstate=INITIALCURRENT,new_target=INITIALCURRENT,acked_target=-1,r2arm=0;
+// values of acked_target: -2=command sent but not yet acked; -1=stable situation between changes; 0+=target from homekit
 
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
 // add this section to make your device OTA capable
@@ -258,7 +259,7 @@ void target_task(void *argv) {
             UDPLUO(" SEND_OK");
             if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
                 UDPLUO(" Target=%d",new_target);
-                acked_target=-1;
+                acked_target=-2; //indicates the attempt to send a new_target
                 switch(new_target) {
                     case 1: send_command( away);
                       break;
@@ -280,23 +281,25 @@ void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Prot
     int old_target =   target.value.int_value;
     int old_current=  current.value.int_value;
     int old_alarm  =alarmtype.value.int_value;
-    int armed,alarm,stay,fluid;
+    int armed,alarm,stay,stable;
     
-    armed=command[3]&0x40;
-    alarm=command[4]&0x01;
-    stay =command[5]&0x04;
-    fluid=command[8]&0x90; //combines acceptance_beep (bit7) and valid_pin_accepted (bit4)
-    r2arm=command[8]&0x04;
+    armed =command[3]&0x40;
+    alarm =command[4]&0x01;
+    stay  =command[5]&0x04;
+    stable=command[8]&0x90?0:1; //combines acceptance_beep (bit7) and valid_pin_accepted (bit4)
+    r2arm =command[8]&0x04;
     
     if (armed) {
         if (stay) currentstate=2; else currentstate=1;
     } else {
         currentstate=3;
     }
-    if (!fluid) {
+    if (stable) {
         target.value.int_value = currentstate;
-        if (acked_target>-1) {new_target=currentstate; acked_target=-1;}
-    }
+        if (acked_target>=0) {new_target=currentstate; acked_target=-1;}
+    } else { //recent arming or disarming
+        if (acked_target==-1) acked_target=new_target; //must have come from NX-8 console
+    } //it will correct new_target when stable while preventing target_task from sending out stale new_target
     if (   target.value.int_value!=old_target ) 
                                     homekit_characteristic_notify(&target,   HOMEKIT_UINT8(   target.value.int_value));
     current.value.int_value = alarm ? 4 : currentstate;
@@ -591,7 +594,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.6\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.7\n");
 
     alarm_init();
     
