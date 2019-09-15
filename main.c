@@ -158,8 +158,25 @@ homekit_value_t pin_get() {
     .value = HOMEKIT_UINT8_(_value), \
     ##__VA_ARGS__
 
+#define timerNcreate(N) \
+    int old_motion ## N; \
+    TimerHandle_t motionTimer ## N; \
+    homekit_characteristic_t motion ## N = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0); \
+    void retention ## N ## _set(homekit_value_t value); \
+    homekit_characteristic_t retention ## N =HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention ## N ## _set); \
+    void retention ## N ## _set(homekit_value_t value) { \
+        UDPLUS("Retention" #N " time: %d\n", value.int_value); \
+        xTimerChangePeriod(motionTimer ## N,pdMS_TO_TICKS(value.int_value*1000),100); \
+        retention ## N.value=value; \
+    }
 //TODO turn all these sensor bits into several macros
-int old_motion1,old_motion2,old_motion3,old_motion4,old_motion5,old_motion6;
+timerNcreate(1)
+timerNcreate(2)
+timerNcreate(3)
+timerNcreate(4)
+timerNcreate(5)
+timerNcreate(6)
+/*int old_motion1,old_motion2,old_motion3,old_motion4,old_motion5,old_motion6;
 TimerHandle_t motionTimer1,motionTimer2,motionTimer3,motionTimer4,motionTimer5,motionTimer6;
 homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 homekit_characteristic_t motion2 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
@@ -209,7 +226,7 @@ void retention6_set(homekit_value_t value) {
     UDPLUS("Retention6 time: %d\n", value.int_value);
     xTimerChangePeriod(motionTimer6,pdMS_TO_TICKS(value.int_value*1000),100);
     retention6.value=value;
-}
+}*/
 
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
@@ -292,7 +309,17 @@ void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Prot
     UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
 }
 
-void motion1timer( TimerHandle_t xTimer ) {
+#define timerNaccessory(N) \
+ void motion ## N ## timer( TimerHandle_t xTimer ) { \
+  if (old_motion ## N) homekit_characteristic_notify(&motion ## N,HOMEKIT_BOOL(old_motion ## N=motion ## N.value.bool_value=0)); \
+ }
+timerNaccessory(1)
+timerNaccessory(2)
+timerNaccessory(3)
+timerNaccessory(4)
+timerNaccessory(5)
+timerNaccessory(6)
+/*void motion1timer( TimerHandle_t xTimer ) {
     if (old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=0));
 }
 void motion2timer( TimerHandle_t xTimer ) {
@@ -309,10 +336,22 @@ void motion5timer( TimerHandle_t xTimer ) {
 }
 void motion6timer( TimerHandle_t xTimer ) {
     if (old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=0));
-}
+}*/
 
+#define timerNparse(N) do { \
+ if (command[2]&(1<<(N-1))) { \
+  if (!old_motion ## N) homekit_characteristic_notify(&motion ## N,HOMEKIT_BOOL(old_motion ## N=motion ## N.value.bool_value=1)); \
+  xTimerReset(motionTimer ## N,100); \
+ } \
+} while(0)
 void parse04(void) { //command is 10X 04
-    if (command[2]&(1<<(1-1))) {
+    timerNparse(1);
+    timerNparse(2);
+    timerNparse(3);
+    timerNparse(4);
+    timerNparse(5);
+    timerNparse(6);
+/*    if (command[2]&(1<<(1-1))) {
         if (!old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=1));
         xTimerReset(motionTimer1,100);
     }
@@ -335,7 +374,7 @@ void parse04(void) { //command is 10X 04
     if (command[2]&(1<<(6-1))) {
         if (!old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=1));
         xTimerReset(motionTimer6,100);
-    }
+    } */
 }
 
 int CRC_OK(int len) {
@@ -435,18 +474,50 @@ void receive_task(void *argv) {
     }//while true
 }
 
+#define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
     xTaskCreate( target_task,  "target", 512, NULL, 1, NULL);
-    motionTimer1=xTimerCreate("mt1",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion1timer);
+    timerNcallback(1);
+    timerNcallback(2);
+    timerNcallback(3);
+    timerNcallback(4);
+    timerNcallback(5);
+    timerNcallback(6);
+/*  motionTimer1=xTimerCreate("mt1",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion1timer);
     motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion2timer);
     motionTimer3=xTimerCreate("mt3",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion3timer);
     motionTimer4=xTimerCreate("mt4",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion4timer);
     motionTimer5=xTimerCreate("mt5",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion5timer);
-    motionTimer6=xTimerCreate("mt6",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion6timer);
+    motionTimer6=xTimerCreate("mt6",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion6timer); */
 }
+
+#define timerNdefine(N,ID) \
+    HOMEKIT_ACCESSORY( \
+        .id=ID, \
+        .category=homekit_accessory_category_sensor, \
+        .services=(homekit_service_t*[]){ \
+            HOMEKIT_SERVICE(ACCESSORY_INFORMATION, \
+                .characteristics=(homekit_characteristic_t*[]){ \
+                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor" #N), \
+                    &manufacturer, \
+                    &serial, \
+                    &model, \
+                    &revision, \
+                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify), \
+                    NULL \
+                }), \
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true, \
+                .characteristics=(homekit_characteristic_t*[]){ \
+                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor" #N), \
+                    &motion ## N, \
+                    &retention ## N, \
+                    NULL \
+                }), \
+            NULL \
+        }),
 
 homekit_accessory_t *accessories[] = {
     HOMEKIT_ACCESSORY(
@@ -478,6 +549,16 @@ homekit_accessory_t *accessories[] = {
                 }),
             NULL
         }),
+    timerNdefine(1,2)
+    timerNdefine(2,3)
+    timerNdefine(3,4)
+    timerNdefine(4,5)
+    timerNdefine(5,6)
+    timerNdefine(6,7)
+    NULL
+};
+
+/*
     HOMEKIT_ACCESSORY(
         .id=2,
         .category=homekit_accessory_category_sensor,
@@ -501,123 +582,7 @@ homekit_accessory_t *accessories[] = {
                 }),
             NULL
         }),
-    HOMEKIT_ACCESSORY(
-        .id=3,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor2"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor2"),
-                    &motion2,
-                    &retention2,
-                    NULL
-                }),
-            NULL
-        }),
-    HOMEKIT_ACCESSORY(
-        .id=4,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor3"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor3"),
-                    &motion3,
-                    &retention3,
-                    NULL
-                }),
-            NULL
-        }),
-    HOMEKIT_ACCESSORY(
-        .id=5,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor4"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor4"),
-                    &motion4,
-                    &retention4,
-                    NULL
-                }),
-            NULL
-        }),
-    HOMEKIT_ACCESSORY(
-        .id=6,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor5"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor5"),
-                    &motion5,
-                    &retention5,
-                    NULL
-                }),
-            NULL
-        }),
-    HOMEKIT_ACCESSORY(
-        .id=7,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor6"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor6"),
-                    &motion6,
-                    &retention6,
-                    NULL
-                }),
-            NULL
-        }),
-    NULL
-};
+*/
 
 homekit_server_config_t config = {
     .accessories = accessories,
@@ -626,7 +591,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.5\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.6\n");
 
     alarm_init();
     
