@@ -38,9 +38,9 @@ uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; //this is button 2
 uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; //still must set off[5] and off[6] to pin bytes
 SemaphoreHandle_t send_ok;
 SemaphoreHandle_t acked;
-int  armed=0, stay=0, alarm=0;
 #define           INITIALCURRENT 3
-int  currentstate=INITIALCURRENT;
+int  currentstate=INITIALCURRENT,new_target=INITIALCURRENT,acked_target=-1,r2arm=0;
+
 /* ============== BEGIN HOMEKIT CHARACTERISTIC DECLARATIONS =============================================================== */
 // add this section to make your device OTA capable
 // create the extra characteristic &ota_trigger, at the end of the primary service (before the NULL)
@@ -60,9 +60,16 @@ homekit_characteristic_t revision     = HOMEKIT_CHARACTERISTIC_(FIRMWARE_REVISIO
 //    config.accessories[0]->config_number=c_hash;
 // end of OTA add-in instructions
 
-homekit_characteristic_t target       = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_TARGET_STATE,  INITIALCURRENT);
-homekit_characteristic_t current      = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_CURRENT_STATE, INITIALCURRENT);
-homekit_characteristic_t alarmtype    = HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM_TYPE,    0,            );
+void target_set(homekit_value_t value) {
+    int my_target=value.int_value;
+    //we should only move between armed states and off
+    if (my_target<3 && currentstate==3)   new_target=my_target;
+    if (my_target==3 && currentstate<3)   new_target=my_target;
+    UDPLUS("\nNewTarget:%d MyTarget:%d\n",new_target,my_target);
+}
+homekit_characteristic_t target   =HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_TARGET_STATE,  INITIALCURRENT, .setter=target_set);
+homekit_characteristic_t current  =HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_CURRENT_STATE, INITIALCURRENT                    );
+homekit_characteristic_t alarmtype=HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM_TYPE,    0                                 );
 
 
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_PIN1CODE HOMEKIT_CUSTOM_UUID("F0000011")
@@ -134,7 +141,7 @@ homekit_value_t pin_get() {
         off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
         pin1.value.int_value=0; pin2.value.int_value=0; pin3.value.int_value=0; pin4.value.int_value=0;
     }
-    UDPLUO("\nPIN bytes %02x %02x\n",off[5],off[6]);
+    if (off[5] || off[6]) UDPLUO("\nPIN bytes set\n"); else UDPLUO("\nPIN bytes ZERO!\n");
     return HOMEKIT_INT(0); 
 }
 
@@ -228,44 +235,53 @@ void identify(homekit_value_t _value) {
                             } while(0) //must not monopolize CPU
 
 void target_task(void *argv) {
-    int new_target,old_target=INITIALCURRENT;
     //if pincode=0000 then wait
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
             UDPLUO(" SEND_OK");
-            if ((new_target=target.value.int_value)!=old_target) {
+            if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
                 UDPLUO(" Target=%d",new_target);
+                acked_target=-1;
                 switch(new_target) {
                     case 1: send_command( away);
                       break;
                     case 2: send_command(sleep);
                       break;
                     case 3: if (currentstate<3) send_command(off);
-                      break;//ONLY DO THIS IF SURE ALARM IS ARMED NOW else it actually arms the alarm instead of turning it off
+                      break;//ONLY DO THIS IF SURE ALARM IS ARMED NOW else it arms the alarm instead of turning it off
                     default: break;
                 }
-                if (xSemaphoreTake(acked,pdMS_TO_TICKS(100))) { //100ms should be enough
-                    old_target=new_target;
-                    homekit_characteristic_notify(&target,HOMEKIT_UINT8(new_target));
+                if (xSemaphoreTake(acked,pdMS_TO_TICKS(150))) { //150ms should be enough
+                    acked_target=new_target;
                 }
             }
         }
     }
 }
 
-void parse18(void) { //command is 10X 18 PP
-    int old_current =   current.value.int_value;
-    int old_alarm   = alarmtype.value.int_value;
-
+void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Protocol.pdf message 06h
+    int old_target =   target.value.int_value;
+    int old_current=  current.value.int_value;
+    int old_alarm  =alarmtype.value.int_value;
+    int armed,alarm,stay,fluid;
+    
     armed=command[3]&0x40;
     alarm=command[4]&0x01;
     stay =command[5]&0x04;
+    fluid=command[8]&0x90; //combines acceptance_beep (bit7) and valid_pin_accepted (bit4)
+    r2arm=command[8]&0x04;
     
     if (armed) {
         if (stay) currentstate=2; else currentstate=1;
     } else {
         currentstate=3;
     }
+    if (!fluid) {
+        target.value.int_value = currentstate;
+        if (acked_target>-1) {new_target=currentstate; acked_target=-1;}
+    }
+    if (   target.value.int_value!=old_target ) 
+                                    homekit_characteristic_notify(&target,   HOMEKIT_UINT8(   target.value.int_value));
     current.value.int_value = alarm ? 4 : currentstate;
     if (  current.value.int_value!=old_current) 
                                     homekit_characteristic_notify(&current,  HOMEKIT_UINT8(  current.value.int_value));
@@ -610,7 +626,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.4\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.5\n");
 
     alarm_init();
     
