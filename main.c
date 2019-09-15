@@ -170,64 +170,13 @@ homekit_value_t pin_get() {
         xTimerChangePeriod(motionTimer ## N,pdMS_TO_TICKS(value.int_value*1000),100); \
         retention ## N.value=value; \
     }
-//TODO turn all these sensor bits into several macros
 timerNcreate(1)
 timerNcreate(2)
 timerNcreate(3)
 timerNcreate(4)
 timerNcreate(5)
 timerNcreate(6)
-/*int old_motion1,old_motion2,old_motion3,old_motion4,old_motion5,old_motion6;
-TimerHandle_t motionTimer1,motionTimer2,motionTimer3,motionTimer4,motionTimer5,motionTimer6;
-homekit_characteristic_t motion1 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion2 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion3 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion4 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion5 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
-homekit_characteristic_t motion6 = HOMEKIT_CHARACTERISTIC_(MOTION_DETECTED, 0);
 
-void retention1_set(homekit_value_t value);
-void retention2_set(homekit_value_t value);
-void retention3_set(homekit_value_t value);
-void retention4_set(homekit_value_t value);
-void retention5_set(homekit_value_t value);
-void retention6_set(homekit_value_t value);
-homekit_characteristic_t retention1=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention1_set);
-homekit_characteristic_t retention2=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention2_set);
-homekit_characteristic_t retention3=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention3_set);
-homekit_characteristic_t retention4=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention4_set);
-homekit_characteristic_t retention5=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention5_set);
-homekit_characteristic_t retention6=HOMEKIT_CHARACTERISTIC_(CUSTOM_RETENTION,60,.setter=retention6_set);
-void retention1_set(homekit_value_t value) {
-    UDPLUS("Retention1 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer1,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention1.value=value;
-}
-void retention2_set(homekit_value_t value) {
-    UDPLUS("Retention2 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer2,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention2.value=value;
-}
-void retention3_set(homekit_value_t value) {
-    UDPLUS("Retention3 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer3,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention3.value=value;
-}
-void retention4_set(homekit_value_t value) {
-    UDPLUS("Retention4 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer4,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention4.value=value;
-}
-void retention5_set(homekit_value_t value) {
-    UDPLUS("Retention5 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer5,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention5.value=value;
-}
-void retention6_set(homekit_value_t value) {
-    UDPLUS("Retention6 time: %d\n", value.int_value);
-    xTimerChangePeriod(motionTimer6,pdMS_TO_TICKS(value.int_value*1000),100);
-    retention6.value=value;
-}*/
 
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
@@ -322,24 +271,6 @@ timerNaccessory(3)
 timerNaccessory(4)
 timerNaccessory(5)
 timerNaccessory(6)
-/*void motion1timer( TimerHandle_t xTimer ) {
-    if (old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=0));
-}
-void motion2timer( TimerHandle_t xTimer ) {
-    if (old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=0));
-}
-void motion3timer( TimerHandle_t xTimer ) {
-    if (old_motion3) homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(old_motion3=motion3.value.bool_value=0));
-}
-void motion4timer( TimerHandle_t xTimer ) {
-    if (old_motion4) homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(old_motion4=motion4.value.bool_value=0));
-}
-void motion5timer( TimerHandle_t xTimer ) {
-    if (old_motion5) homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(old_motion5=motion5.value.bool_value=0));
-}
-void motion6timer( TimerHandle_t xTimer ) {
-    if (old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=0));
-}*/
 
 #define timerNparse(N) do { \
  if (command[2]&(1<<(N-1))) { \
@@ -354,30 +285,6 @@ void parse04(void) { //command is 10X 04
     timerNparse(4);
     timerNparse(5);
     timerNparse(6);
-/*    if (command[2]&(1<<(1-1))) {
-        if (!old_motion1) homekit_characteristic_notify(&motion1,HOMEKIT_BOOL(old_motion1=motion1.value.bool_value=1));
-        xTimerReset(motionTimer1,100);
-    }
-    if (command[2]&(1<<(2-1))) {
-        if (!old_motion2) homekit_characteristic_notify(&motion2,HOMEKIT_BOOL(old_motion2=motion2.value.bool_value=1));
-        xTimerReset(motionTimer2,100);
-    }
-    if (command[2]&(1<<(3-1))) {
-        if (!old_motion3) homekit_characteristic_notify(&motion3,HOMEKIT_BOOL(old_motion3=motion3.value.bool_value=1));
-        xTimerReset(motionTimer3,100);
-    }
-    if (command[2]&(1<<(4-1))) {
-        if (!old_motion4) homekit_characteristic_notify(&motion4,HOMEKIT_BOOL(old_motion4=motion4.value.bool_value=1));
-        xTimerReset(motionTimer4,100);
-    }
-    if (command[2]&(1<<(5-1))) {
-        if (!old_motion5) homekit_characteristic_notify(&motion5,HOMEKIT_BOOL(old_motion5=motion5.value.bool_value=1));
-        xTimerReset(motionTimer5,100);
-    }
-    if (command[2]&(1<<(6-1))) {
-        if (!old_motion6) homekit_characteristic_notify(&motion6,HOMEKIT_BOOL(old_motion6=motion6.value.bool_value=1));
-        xTimerReset(motionTimer6,100);
-    } */
 }
 
 int CRC_OK(int len) {
@@ -489,12 +396,6 @@ void alarm_init() {
     timerNcallback(4);
     timerNcallback(5);
     timerNcallback(6);
-/*  motionTimer1=xTimerCreate("mt1",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion1timer);
-    motionTimer2=xTimerCreate("mt2",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion2timer);
-    motionTimer3=xTimerCreate("mt3",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion3timer);
-    motionTimer4=xTimerCreate("mt4",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion4timer);
-    motionTimer5=xTimerCreate("mt5",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion5timer);
-    motionTimer6=xTimerCreate("mt6",pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion6timer); */
 }
 
 #define timerNdefine(N,ID) \
@@ -561,31 +462,6 @@ homekit_accessory_t *accessories[] = {
     NULL
 };
 
-/*
-    HOMEKIT_ACCESSORY(
-        .id=2,
-        .category=homekit_accessory_category_sensor,
-        .services=(homekit_service_t*[]){
-            HOMEKIT_SERVICE(ACCESSORY_INFORMATION,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "NX-8-Sensor1"),
-                    &manufacturer,
-                    &serial,
-                    &model,
-                    &revision,
-                    HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
-                    NULL
-                }),
-            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=true,
-                .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Sensor1"),
-                    &motion1,
-                    &retention1,
-                    NULL
-                }),
-            NULL
-        }),
-*/
 
 homekit_server_config_t config = {
     .accessories = accessories,
