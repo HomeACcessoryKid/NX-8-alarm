@@ -159,6 +159,7 @@ homekit_value_t pin_get() {
     .value = HOMEKIT_UINT8_(_value), \
     ##__VA_ARGS__
 
+//TODO: store timer values in sysparam
 #define timerNcreate(N) \
     int old_motion ## N; \
     TimerHandle_t motionTimer ## N; \
@@ -202,7 +203,7 @@ void identify(homekit_value_t _value) {
                             } while(0) //must not monopolize CPU
 
 void target_task(void *argv) {
-    //if pincode=0000 then wait
+    while(!off[5] && !off[6]) vTaskDelay(100); //if pincode=0000 then wait 1 second
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
             UDPLUO(" SEND_OK");
@@ -470,7 +471,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.7\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.8\n");
 
     alarm_init();
     

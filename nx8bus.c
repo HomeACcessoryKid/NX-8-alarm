@@ -107,7 +107,7 @@ void nx8bus_command(uint8_t * data, uint8_t len) {
     uint16_t ss;    
     uint16_t crc;    
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_NONE, handle_rx); //we must be half duplex else read interrupt will stop us
-    sdk_os_delay_us(bit_time);
+    sdk_os_delay_us(bit_time*10); //TODO wait 10 bit times to start transmission (we had issues with reliability when *1)
     for (int i=0;i<len;i++){
         ss=data[i];
         if (!i) ss+=0x100;
