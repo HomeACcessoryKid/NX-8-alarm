@@ -377,6 +377,7 @@ void receive_task(void *argv) {
                         if (CRC_OK(2)) xSemaphoreGive(acked);
                     } break;
                     case 0x70: { //2 70 is pin-return message
+                        for (i=2;i< 8;i++) read_byte(command[i]);
                         if (CRC_OK(8)) send_command(ack270);
                     } break;
                     default: { //unknown command for me
