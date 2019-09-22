@@ -36,6 +36,8 @@ uint8_t ack210[]={0x08, 0x44, 0x00};
 uint8_t  sleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; //this is button 0
 uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; //this is button 2
 uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; //still must set off[5] and off[6] to pin bytes
+uint8_t   prog[]={0x08, 0xd0, MY_ID, 0x01, 0x01, 0, 0, 0x00}; //still must set prog[5] and prog[6] to pin bytes
+uint8_t ack270[]={0x08, 0x40, 0x00};
 SemaphoreHandle_t send_ok;
 SemaphoreHandle_t acked;
 #define           INITIALCURRENT 3
@@ -140,6 +142,7 @@ homekit_value_t pin_get() {
     if (pin1.value.int_value || pin2.value.int_value || pin3.value.int_value || pin4.value.int_value  ) {
         off[5]=pin1.value.int_value+pin2.value.int_value*0x10;
         off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
+        prog[5]=off[5]; prog[6]=off[6];
         pin1.value.int_value=0; pin2.value.int_value=0; pin3.value.int_value=0; pin4.value.int_value=0;
     }
     if (off[5] || off[6]) UDPLUO("\nPIN bytes set\n"); else UDPLUO("\nPIN bytes ZERO!\n");
@@ -207,6 +210,7 @@ void target_task(void *argv) {
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
             UDPLUO(" SEND_OK");
+            send_command(prog); continue;
             if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
                 UDPLUO(" Target=%d",new_target);
                 acked_target=-2; //indicates the attempt to send a new_target
@@ -372,6 +376,9 @@ void receive_task(void *argv) {
                     case 0x40: { //2 40 is 108 command ACK
                         if (CRC_OK(2)) xSemaphoreGive(acked);
                     } break;
+                    case 0x70: { //2 70 is pin-return message
+                        if (CRC_OK(8)) send_command(ack270);
+                    } break;
                     default: { //unknown command for me
                     } break;
                 } //switch data state 2
@@ -471,7 +478,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.8\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.1.9\n");
 
     alarm_init();
     
