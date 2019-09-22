@@ -25,10 +25,9 @@ uint16_t nx8bus_CRC(const uint8_t * data, int len);
  * Initialize nx8 bus and setup interrupt handler
  * @param rx_pin GPIO pin number for RX
  * @param tx_pin GPIO pin number for TX
- * @param enable GPIO pin number for enable
  * @return true if no errors occured otherwise false
  */
-bool nx8bus_open(uint8_t rx_pin, uint8_t tx_pin, uint8_t enable);
+bool nx8bus_open(uint8_t rx_pin, uint8_t tx_pin);
 
 /**
  * Put command to nx8bus uart

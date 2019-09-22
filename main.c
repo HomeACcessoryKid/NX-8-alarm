@@ -27,8 +27,7 @@
 #include <udplogger.h>
 #include <nx8bus.h>
 #define RX_PIN 5
-#define TX_PIN 2
-#define ENABLE_PIN 4
+#define TX_PIN 4
 #define MY_ID  0xd8
 
 uint8_t command[20]; //assuming no command will be longer
@@ -312,7 +311,7 @@ void receive_task(void *argv) {
     
     oldtime=sdk_system_get_time()/1000;
 
-    nx8bus_open(RX_PIN, TX_PIN, ENABLE_PIN);
+    nx8bus_open(RX_PIN, TX_PIN);
     while (true) {
         read_byte(data);
         xSemaphoreTake(send_ok,0);
@@ -479,7 +478,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(3);
-    UDPLUS("\n\n\nNX-8-alarm 0.1.9\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.2.0\n");
 
     alarm_init();
     

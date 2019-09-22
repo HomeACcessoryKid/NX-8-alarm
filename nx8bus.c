@@ -17,7 +17,7 @@ typedef struct {
     uint8_t buffer_overflow;
 } nx8bus_buffer_t;
 
-uint8_t rx_pin, tx_pin, enable_pin;
+uint8_t rx_pin, tx_pin;
 uint16_t bit_time=250; //4000BAUD
 volatile nx8bus_buffer_t buffer;
 
@@ -63,20 +63,16 @@ static void handle_rx(uint8_t gpio_num) {
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_EDGE_NEG, handle_rx); // Done, reenable interrupt
 }
 
-bool nx8bus_open(uint8_t rx, uint8_t tx, uint8_t enable) {
-    if (rx == tx || rx == enable) return false;
+bool nx8bus_open(uint8_t rx, uint8_t tx) {
+    if (rx == tx) return false;
     rx_pin = rx; tx_pin = tx;
-    enable_pin = enable;
 
     // Setup Rx
     gpio_enable(rx_pin, GPIO_INPUT);
     gpio_set_pullup(rx_pin, false, false);
     // Setup Tx
     gpio_enable(tx_pin, GPIO_OUTPUT);
-    gpio_write(tx_pin, 1); //sets bus input to 0 but high Z (see enable) and blue led OFF and also serves as the start bit
-    // Setup Enable
-    gpio_enable(enable_pin, GPIO_OUTPUT);
-    gpio_write(enable_pin, 0); //if LOW then 4512 chip-enable = 1 so output is high Z
+    gpio_write(tx_pin, 0); //sets bus driver to high Z
 
     // Setup the interrupt handler to get the start bit
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_EDGE_NEG, handle_rx);
@@ -87,8 +83,7 @@ bool nx8bus_open(uint8_t rx, uint8_t tx, uint8_t enable) {
 void nx8bus_put(uint16_t cc) {
     //TX value ONE is the idle state to turn of blue LED, and this is ZERO on the bus but Enable is off
     //so enable->1 sends a BIT zero on the bus as a start bit
-    gpio_write(tx_pin, 1); //idle state of TX (just in case)
-    gpio_write(enable_pin, 1); //start bit
+    gpio_write(tx_pin, 1); //start bit
 
     uint32_t start_time = systime;
     for (uint8_t i = 0; i < 9; i++) {
@@ -97,17 +92,15 @@ void nx8bus_put(uint16_t cc) {
     }
 
     wait4bit(10);
-    gpio_write(tx_pin, 0); //stop bit, inverted
+    gpio_write(tx_pin, 0); //stop bit=idle state of TX
     sdk_os_delay_us(bit_time);
-    gpio_write(enable_pin, 0); //bus back to high Z
-    gpio_write(tx_pin, 1); //idle state of TX
 }
 
 void nx8bus_command(uint8_t * data, uint8_t len) {
     uint16_t ss;    
     uint16_t crc;    
     gpio_set_interrupt(rx_pin, GPIO_INTTYPE_NONE, handle_rx); //we must be half duplex else read interrupt will stop us
-    sdk_os_delay_us(bit_time*10); //TODO wait 10 bit times to start transmission (we had issues with reliability when *1)
+    sdk_os_delay_us(bit_time);
     for (int i=0;i<len;i++){
         ss=data[i];
         if (!i) ss+=0x100;
