@@ -397,7 +397,7 @@ void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 512, NULL, 1, NULL);
+    xTaskCreate( target_task,  "target", 512, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
     timerNcallback(3);
@@ -477,7 +477,7 @@ homekit_server_config_t config = {
 };
 
 void on_wifi_ready() {
-    udplog_init(3);
+    udplog_init(2);
     UDPLUS("\n\n\nNX-8-alarm 0.2.0\n");
 
     alarm_init();
