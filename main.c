@@ -209,7 +209,7 @@ void target_task(void *argv) {
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
             UDPLUO(" SEND_OK");
-            send_command(prog); continue;
+//             send_command(prog); continue; //to test transmission reliability
             if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
                 UDPLUO(" Target=%d",new_target);
                 acked_target=-2; //indicates the attempt to send a new_target
@@ -478,7 +478,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm 0.2.0\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.2.2\n");
 
     alarm_init();
     
