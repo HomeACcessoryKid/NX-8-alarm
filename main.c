@@ -478,7 +478,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm 0.2.2\n");
+    UDPLUS("\n\n\nNX-8-alarm 0.3.0\n");
 
     alarm_init();
     

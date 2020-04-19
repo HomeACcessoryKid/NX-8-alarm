@@ -81,8 +81,7 @@ bool nx8bus_open(uint8_t rx, uint8_t tx) {
 }
 
 void nx8bus_put(uint16_t cc) {
-    //TX value ONE is the idle state to turn of blue LED, and this is ZERO on the bus but Enable is off
-    //so enable->1 sends a BIT zero on the bus as a start bit
+    //tx->1 sends a BIT zero on the bus as a start bit
     gpio_write(tx_pin, 1); //start bit
 
     uint32_t start_time = systime;

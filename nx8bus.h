@@ -1,10 +1,9 @@
 /** (c) 2019 HomeACcessoryKid@gmail.com
- * This is a driver for the NX8 bus based on a 4512 bus driver with a fixed address selected
- * the selected input is connected to a NPN driver with 10k collector to 12V bus power and by a base 220kohm to the tx pin 
- * the inhibit pin 15 is connected with NPN driver to the enable pin
- * the Z output 14 is connected to the bus dataline
- * the rx pin is reading the bus by a divider of 10k to ground and 33k to the dataline
- * some credit goes to the softuart writers on which this is loosly based
+ * This is a driver for the NX8 bus based on a 4512 bus driver with a fixed address selected and that pin gets 0 V input
+ * The inhibit pin 15 is connected to a NPN driver with 10k collector to 12V bus power and by a base 180kohm to the tx pin 
+ * The Zoutput pin 14 is connected to the bus dataline. So tx=0 is high-Z and tx=1 is zero out. The bus itself is 12v idle
+ * The rx pin is reading the bus by a divider of 10k to ground and 33k to the dataline
+ * Some credit goes to the softuart writers on which this is loosly based
  */
 #ifndef NX8BUS_H_
 #define NX8BUS_H_
