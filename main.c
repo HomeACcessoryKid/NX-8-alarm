@@ -1,4 +1,4 @@
-/*  (c) 2019 HomeAccessoryKid
+/*  (c) 2019-2020 HomeAccessoryKid
  *  This example makes an NetworX NX-8 alarm system homekit enabled.
  *  The alarm can switch between off, away and sleep
  *  the individual sensors are set out as individual motion sensors accessories
@@ -26,6 +26,11 @@
 #include <wifi_config.h>
 #include <udplogger.h>
 #include <nx8bus.h>
+
+#ifndef VERSION
+ #error You must set VERSION=x.y.z to match github version tag x.y.z
+#endif
+
 #define RX_PIN 5
 #define TX_PIN 4
 #define MY_ID  0xd8
@@ -478,7 +483,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm 0.3.0\n");
+    UDPLUS("\n\n\nNX-8-alarm" VERSION "\n");
 
     alarm_init();
     
@@ -491,6 +496,6 @@ void on_wifi_ready() {
 }
 
 void user_init(void) {
-    uart_set_baud(0, 230400);
+    uart_set_baud(0, 115200);
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }

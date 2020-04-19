@@ -1,6 +1,6 @@
 # NX-8-alarm
 
-## (c) 2019 HomeACcessoryKid@gmail.com
+## (c) 2019-2020 HomeACcessoryKid@gmail.com
  *  This example makes an NetworX NX-8 alarm system homekit enabled.
  *  The alarm can switch between off, away and sleep
  *  the individual sensors are set out as individual motion sensors accessories
@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.1 added all printf to UPDlogger
+
 ### 0.3.0 updated all submodules to april 2020 versions
 
 ### 0.2.2 the first operational version
