@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.2 changed PIN feedback to -1 and introduced debug switch
+
 ### 0.3.1 added all printf to UPDlogger
 
 ### 0.3.0 updated all submodules to april 2020 versions

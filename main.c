@@ -88,7 +88,7 @@ homekit_characteristic_t alarmtype=HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM
                  | homekit_permissions_paired_write \
                  | homekit_permissions_notify, \
     .unit = homekit_unit_none, \
-    .min_value = (float[]) {0}, \
+    .min_value = (float[]){-1}, \
     .max_value = (float[]) {9}, \
     .min_step  = (float[]) {1}, \
     .value = HOMEKIT_INT_(_value), \
@@ -102,7 +102,7 @@ homekit_characteristic_t alarmtype=HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM
                  | homekit_permissions_paired_write \
                  | homekit_permissions_notify, \
     .unit = homekit_unit_none, \
-    .min_value = (float[]) {0}, \
+    .min_value = (float[]){-1}, \
     .max_value = (float[]) {9}, \
     .min_step  = (float[]) {1}, \
     .value = HOMEKIT_INT_(_value), \
@@ -116,7 +116,7 @@ homekit_characteristic_t alarmtype=HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM
                  | homekit_permissions_paired_write \
                  | homekit_permissions_notify, \
     .unit = homekit_unit_none, \
-    .min_value = (float[]) {0}, \
+    .min_value = (float[]){-1}, \
     .max_value = (float[]) {9}, \
     .min_step  = (float[]) {1}, \
     .value = HOMEKIT_INT_(_value), \
@@ -130,7 +130,7 @@ homekit_characteristic_t alarmtype=HOMEKIT_CHARACTERISTIC_(SECURITY_SYSTEM_ALARM
                  | homekit_permissions_paired_write \
                  | homekit_permissions_notify, \
     .unit = homekit_unit_none, \
-    .min_value = (float[]) {0}, \
+    .min_value = (float[]){-1}, \
     .max_value = (float[]) {9}, \
     .min_step  = (float[]) {1}, \
     .value = HOMEKIT_INT_(_value), \
@@ -143,15 +143,28 @@ homekit_characteristic_t pin3 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN3CODE, 0, .get
 homekit_characteristic_t pin4 = HOMEKIT_CHARACTERISTIC_(CUSTOM_PIN4CODE, 0, .getter=pin_get);
 
 homekit_value_t pin_get() {
-    if (pin1.value.int_value || pin2.value.int_value || pin3.value.int_value || pin4.value.int_value  ) {
+    if (pin1.value.int_value>0 || pin2.value.int_value>0 || pin3.value.int_value>0 || pin4.value.int_value>0  ) {
         off[5]=pin1.value.int_value+pin2.value.int_value*0x10;
         off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
         prog[5]=off[5]; prog[6]=off[6];
-        pin1.value.int_value=0; pin2.value.int_value=0; pin3.value.int_value=0; pin4.value.int_value=0;
+        pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
     }
     if (off[5] || off[6]) UDPLUO("\nPIN bytes set\n"); else UDPLUO("\nPIN bytes ZERO!\n");
-    return HOMEKIT_INT(0); 
+    return HOMEKIT_INT(-1); 
 }
+
+#define HOMEKIT_CHARACTERISTIC_CUSTOM_DEBUG HOMEKIT_CUSTOM_UUID("F0000008")
+#define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_DEBUG(_value, ...) \
+    .type = HOMEKIT_CHARACTERISTIC_CUSTOM_DEBUG, \
+    .description = "}DebugOutput", \
+    .format = homekit_format_bool, \
+    .permissions = homekit_permissions_paired_read \
+                 | homekit_permissions_paired_write \
+                 | homekit_permissions_notify, \
+    .value = HOMEKIT_BOOL_(_value), \
+    ##__VA_ARGS__
+    
+homekit_characteristic_t debug = HOMEKIT_CHARACTERISTIC_(CUSTOM_DEBUG, false);
 
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_RETENTION HOMEKIT_CUSTOM_UUID("F0000007")
 #define HOMEKIT_DECLARE_CHARACTERISTIC_CUSTOM_RETENTION(_value, ...) \
@@ -186,12 +199,15 @@ timerNcreate(5)
 timerNcreate(6)
 
 
+#define DEBUGP(format,...) if (debug.value.bool_value) UDPLUO(format, ##__VA_ARGS__)
+
 // void identify_task(void *_args) {
 //     vTaskDelete(NULL);
 // }
 
 void identify(homekit_value_t _value) {
     UDPLUS("Identify\n");
+    DEBUGP("Debug on\n");
 //    xTaskCreate(identify_task, "identify", 256, NULL, 2, NULL);
 }
 
@@ -462,6 +478,7 @@ homekit_accessory_t *accessories[] = {
                     &pin3,
                     &pin4,
                     &ota_trigger,
+                    &debug,
                     NULL
                 }),
             NULL
@@ -483,7 +500,7 @@ homekit_server_config_t config = {
 
 void on_wifi_ready() {
     udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm" VERSION "\n");
+    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
 
     alarm_init();
     
