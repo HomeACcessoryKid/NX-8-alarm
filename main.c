@@ -146,11 +146,11 @@ homekit_value_t pin_get() {
     if (pin1.value.int_value>0 || pin2.value.int_value>0 || pin3.value.int_value>0 || pin4.value.int_value>0  ) {
         off[5]=pin1.value.int_value+pin2.value.int_value*0x10;
         off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
+        UDPLUS("\nPIN bytes set\n");
         prog[5]=off[5]; prog[6]=off[6];
         pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
     }
-    if (off[5] || off[6]) UDPLUO("\nPIN bytes set\n"); else UDPLUO("\nPIN bytes ZERO!\n");
-    return HOMEKIT_INT(-1); 
+    if (off[5] || off[6]) return HOMEKIT_INT(-1); else return HOMEKIT_INT(0);
 }
 
 #define HOMEKIT_CHARACTERISTIC_CUSTOM_DEBUG HOMEKIT_CUSTOM_UUID("F0000008")
@@ -206,8 +206,9 @@ timerNcreate(6)
 // }
 
 void identify(homekit_value_t _value) {
-    UDPLUS("Identify\n");
-    DEBUGP("Debug on\n");
+    UDPLUS("\nIdentify: ");
+    UDPLUO("%02x%02x ",off[5],off[6]); //TODO remove since this is only for temp verification
+    if (off[5] || off[6]) UDPLUS("PIN bytes set\n"); else UDPLUS("PIN bytes ZERO!\n");
 //    xTaskCreate(identify_task, "identify", 256, NULL, 2, NULL);
 }
 
@@ -215,8 +216,8 @@ void identify(homekit_value_t _value) {
 
 
 //#define send_command(cmd) do{   nx8bus_command(cmd,sizeof(cmd)); } while(0)
-#define send_command(cmd) do{   UDPLUO("\n SEND                       => "); \
-                                for (int i=0;i<sizeof(cmd);i++) UDPLUO(" %02x",cmd[i]); \
+#define send_command(cmd) do{   DEBUGP("\n SEND                       => "); \
+                                for (int i=0;i<sizeof(cmd);i++) DEBUGP(" %02x",cmd[i]); \
                                 nx8bus_command(cmd,sizeof(cmd)); \
                             } while(0)
 #define read_byte(data)   do{   while(1) { \
@@ -229,10 +230,10 @@ void target_task(void *argv) {
     while(!off[5] && !off[6]) vTaskDelay(100); //if pincode=0000 then wait 1 second
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
-            UDPLUO(" SEND_OK");
+            DEBUGP(" SEND_OK");
 //             send_command(prog); continue; //to test transmission reliability
             if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
-                UDPLUO(" Target=%d",new_target);
+                DEBUGP(" Target=%d",new_target);
                 acked_target=-2; //indicates the attempt to send a new_target
                 switch(new_target) {
                     case 1: send_command( away);
@@ -283,7 +284,7 @@ void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Prot
     if (alarmtype.value.int_value!=old_alarm  )
                                     homekit_characteristic_notify(&alarmtype,HOMEKIT_UINT8(alarmtype.value.int_value));
                                     
-    UDPLUO(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
+    DEBUGP(" ar%d st%d cu%d al%d at%d",armed,stay,current.value.int_value,alarm,alarmtype.value.int_value);
 }
 
 #define timerNaccessory(N) \
@@ -317,10 +318,10 @@ int CRC_OK(int len) {
     uint16_t crc=nx8bus_CRC(command,len);
     read_byte(command[l++]);
     read_byte(command[l++]);
-    UDPLUO(" checked:");
-    for (int i=0;i<l;i++) UDPLUO(" %02x",command[i]);
-    UDPLUO(" CRC=%04x",crc);
-    if (command[l-2]==crc%256 && command[l-1]==crc/256) return 1; else {return 0; UDPLUO(" failed!");}
+    DEBUGP(" checked:");
+    for (int i=0;i<l;i++) DEBUGP(" %02x",command[i]);
+    DEBUGP(" CRC=%04x",crc);
+    if (command[l-2]==crc%256 && command[l-1]==crc/256) return 1; else {return 0; DEBUGP(" failed!");}
 }
 
 void receive_task(void *argv) {
@@ -342,7 +343,7 @@ void receive_task(void *argv) {
             sprintf(fill,"\n%5d%9d: ",newtime-oldtime,newtime);
             oldtime=newtime;
         }
-        UDPLUO("%s%02x", data>0xff?fill:" ", data);
+        DEBUGP("%s%02x", data>0xff?fill:" ", data);
 
         switch(state) {
             case 0: { //waiting for a command
@@ -362,27 +363,27 @@ void receive_task(void *argv) {
                 switch(data){
                     case 0x04: { //status 04 contains triggered zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) {UDPLUO(" status 04");parse04();}
+                        if (CRC_OK( 8)) {DEBUGP(" status 04");parse04();}
                     } break;
                     case 0x07: { //status 07 contains blocked zones
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status 07");
+                        if (CRC_OK( 8)) DEBUGP(" status 07");
                     } break;
                     case 0x18: { //status 18 contains partition status
                         for (i=2;i< 10;i++) read_byte(command[i]);
-                        if (command[2]==0 && CRC_OK(10)) {UDPLUO(" status 18 00");parse18();}
-                        else {UDPLUO(" %02x skip",command[2]); read_byte(command[i++]); read_byte(command[i]);}
+                        if (command[2]==0 && CRC_OK(10)) {DEBUGP(" status 18 00");parse18();}
+                        else {DEBUGP(" %02x skip",command[2]); read_byte(command[i++]); read_byte(command[i]);}
                     } break;
                     case 0x00: case 0x02: case 0x03: case 0x05: case 0x06:   //status 00,02,03,05,06
                     case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: { //status 08-0c
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK( 8)) UDPLUO(" status %02x",command[1]);
+                        if (CRC_OK( 8)) DEBUGP(" status %02x",command[1]);
                     } break;
                     case 0x01: { //status 01
                         for (i=2;i<12;i++) read_byte(command[i]);
-                        if (CRC_OK(12)) UDPLUO(" status 01");
+                        if (CRC_OK(12)) DEBUGP(" status 01");
                     } break;
-                    default: UDPLUO(" status unknown"); break; //unknown status message
+                    default: DEBUGP(" status unknown"); break; //unknown status message
                 } //switch data state 1
                 state=0; //ready for the next command because all commands read complete
                 if (command[0]==0) xSemaphoreGive(send_ok);
@@ -406,7 +407,7 @@ void receive_task(void *argv) {
                 state=0; //ready for the next command because max len is 2+2
             } break; //message for me 1st level
             default: {
-                UDPLUO(" undefined state encountered\n");
+                DEBUGP(" undefined state encountered\n");
                 state=0;
             } break;
         }

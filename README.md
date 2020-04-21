@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.3 made bus  messages DEBUG print only and fix PIN -1 mode
+
 ### 0.3.2 changed PIN feedback to -1 and introduced debug switch
 
 ### 0.3.1 added all printf to UPDlogger
