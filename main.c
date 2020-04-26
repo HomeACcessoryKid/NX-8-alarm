@@ -499,6 +499,9 @@ homekit_server_config_t config = {
 };
 
 void on_wifi_ready() {
+    udplog_init(2);
+    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
+
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
@@ -511,8 +514,5 @@ void on_wifi_ready() {
 
 void user_init(void) {
     uart_set_baud(0, 115200);
-    udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
-
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }

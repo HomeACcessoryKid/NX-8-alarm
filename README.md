@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.5 reverted UDPlog change and homekit update bugfix
+
 ### 0.3.4 started UDPlog from the very beginning
 
 ### 0.3.3 made bus  messages DEBUG print only and fix PIN -1 mode
