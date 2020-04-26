@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.6 added a monotor task to show heap and wifi channel
+
 ### 0.3.5 reverted UDPlog change and homekit update bugfix
 
 ### 0.3.4 started UDPlog from the very beginning

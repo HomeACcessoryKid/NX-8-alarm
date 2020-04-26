@@ -498,10 +498,25 @@ homekit_server_config_t config = {
     .password = "111-11-111"
 };
 
+void monitor_task(void *arg) {
+    uint8_t old_channel=0,current_channel=0;
+    int old_heap=0, current_heap=0;
+    while(1) {
+        vTaskDelay(100);
+        current_heap=xPortGetFreeHeapSize();
+        if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
+        if (old_channel!=current_channel || old_heap!=current_heap) {
+            old_channel =current_channel;   old_heap =current_heap;
+            UDPLUO("--- Heap: %6d Channel: %2d @ %8d\n",old_heap,old_channel,sdk_system_get_time()/1000);
+        }
+    }
+}
+
 void on_wifi_ready() {
     udplog_init(2);
     UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
 
+    xTaskCreate(monitor_task, "monitor", 512, NULL, 1, NULL);
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
