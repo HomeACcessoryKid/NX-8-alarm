@@ -207,7 +207,6 @@ timerNcreate(6)
 
 void identify(homekit_value_t _value) {
     UDPLUS("\nIdentify: ");
-    UDPLUO("%02x%02x ",off[5],off[6]); //TODO remove since this is only for temp verification
     if (off[5] || off[6]) UDPLUS("PIN bytes set\n"); else UDPLUS("PIN bytes ZERO!\n");
 //    xTaskCreate(identify_task, "identify", 256, NULL, 2, NULL);
 }
@@ -500,9 +499,6 @@ homekit_server_config_t config = {
 };
 
 void on_wifi_ready() {
-    udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
-
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
@@ -515,5 +511,8 @@ void on_wifi_ready() {
 
 void user_init(void) {
     uart_set_baud(0, 115200);
+    udplog_init(2);
+    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
+
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }
