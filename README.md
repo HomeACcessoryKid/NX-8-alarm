@@ -17,7 +17,9 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
-### 0.3.6 added a monotor task to show heap and wifi channel
+### 0.3.7 improved monitor with heap info
+
+### 0.3.6 added a monitor task to show heap and wifi channel
 
 ### 0.3.5 reverted UDPlog change and homekit update bugfix
 

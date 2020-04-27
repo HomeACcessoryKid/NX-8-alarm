@@ -26,6 +26,8 @@
 #include <wifi_config.h>
 #include <udplogger.h>
 #include <nx8bus.h>
+#include <malloc.h>
+#include <unistd.h>
 
 #ifndef VERSION
  #error You must set VERSION=x.y.z to match github version tag x.y.z
@@ -37,7 +39,7 @@
 
 uint8_t command[20]; //assuming no command will be longer
 uint8_t ack210[]={0x08, 0x44, 0x00};
-uint8_t  sleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; //this is button 0
+uint8_t asleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; //this is button 0
 uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; //this is button 2
 uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; //still must set off[5] and off[6] to pin bytes
 uint8_t   prog[]={0x08, 0xd0, MY_ID, 0x01, 0x01, 0, 0, 0x00}; //still must set prog[5] and prog[6] to pin bytes
@@ -237,7 +239,7 @@ void target_task(void *argv) {
                 switch(new_target) {
                     case 1: send_command( away);
                       break;
-                    case 2: send_command(sleep);
+                    case 2: send_command(asleep);
                       break;
                     case 3: if (currentstate<3) send_command(off);
                       break;//ONLY DO THIS IF SURE ALARM IS ARMED NOW else it arms the alarm instead of turning it off
@@ -499,15 +501,25 @@ homekit_server_config_t config = {
 };
 
 void monitor_task(void *arg) {
+    extern char _heap_start;
+    extern uint32_t xPortSupervisorStackPointer;
+    struct mallinfo mi;
+    uint32_t brk_val;
+    uint32_t sp;
     uint8_t old_channel=0,current_channel=0;
-    int old_heap=0, current_heap=0;
+    int old_heap=0, current_heap=0, delta_heap=0;
     while(1) {
         vTaskDelay(100);
         current_heap=xPortGetFreeHeapSize();
+        delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
         if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
-        if (old_channel!=current_channel || old_heap!=current_heap) {
+        if (old_channel!=current_channel || delta_heap>300) {
             old_channel =current_channel;   old_heap =current_heap;
-            UDPLUO("--- Heap: %6d Channel: %2d @ %8d\n",old_heap,old_channel,sdk_system_get_time()/1000);
+            mi=mallinfo();
+            brk_val = (uint32_t) sbrk(0);
+            sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
+            UDPLUO("--- Channel:%2d Heap:%5d=%5d start:%p brk:0x%08x sp:0x%08x sp-brk:%d arena:%d fordblks:%d uordblocks:%d @ %8d\n",
+                old_channel,old_heap,sp-brk_val+mi.fordblks,&_heap_start,brk_val,sp,sp-brk_val,mi.arena,mi.fordblks,mi.uordblks,sdk_system_get_time()/1000);
         }
     }
 }
