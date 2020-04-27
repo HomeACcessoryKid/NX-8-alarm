@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.3.9 tuning heap info, ordblks doesn't work
+
 ### 0.3.8 added NTP time and tuned heap info
 
 ### 0.3.7 improved monitor with heap info

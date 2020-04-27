@@ -512,9 +512,9 @@ void monitor_task(void *arg) {
     time_t ts;
     const char *servers[] = {"0.pool.ntp.org", "1.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"};
 	sntp_set_update_delay(60*60000); //SNTP will request an update every hour
-	//const struct timezone tz = {1*60, 0}; //Set GMT+1 zone, daylight savings off
-	//sntp_initialize(&tz);
-	sntp_initialize(NULL);
+	const struct timezone tz = {1*60, 1}; //Set GMT+1 zone, daylight savings off
+	sntp_initialize(&tz);
+	//sntp_initialize(NULL);
 	sntp_set_servers(servers, sizeof(servers) / sizeof(char*)); //Servers must be configured right after initialization
     do {ts = time(NULL);
         if (ts == ((time_t)-1)) UDPLUO("ts=-1, ");
@@ -532,9 +532,9 @@ void monitor_task(void *arg) {
             mi=mallinfo();
             brk_val = (uint32_t) sbrk(0);
             sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
-
-            UDPLUO("--- Channel:%2d sp-brk:%5d free:%5d fordblks:%5d ordblks:%4d uordblks:%5d @ %8d = %s\n",
-                old_channel,sp-brk_val,current_heap,mi.fordblks,mi.ordblks,mi.uordblks,sdk_system_get_time()/1000,ctime(&ts));
+            ts = time(NULL);
+            UDPLUO("--- Channel:%2d sp-brk:%5d free:%5d fordblks:%5d uordblks:%5d @ %7d = %s",
+                old_channel,sp-brk_val,current_heap,mi.fordblks,mi.uordblks,sdk_system_get_time()/1000,ctime(&ts));//ctime inncludes a /n
         }
     }
 }
