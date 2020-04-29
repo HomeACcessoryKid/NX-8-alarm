@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.4.1 fixed monitor report format
+
 ### 0.4.0 removed NTP time but count 32bit microsecond wraparound=71minutes
 
 ### 0.3.9 tuning heap info, ordblks doesn't work

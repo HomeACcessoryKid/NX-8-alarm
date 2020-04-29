@@ -521,8 +521,8 @@ void monitor_task(void *arg) {
             mi=mallinfo();
             brk_val = (uint32_t) sbrk(0);
             sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
-            UDPLUO("--- Ch:%2d sp-brk:%5d free:%5d fordblks:%5d uordblks:%5d @ %dH+%7d/n",
-                old_channel,sp-brk_val,current_heap,mi.fordblks,mi.uordblks,long_time,current_time/1000);//long_time=x71minutes
+            UDPLUO("--- Ch:%2d free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %7d+%dH\n",
+                old_channel,current_heap,sp-brk_val,mi.fordblks,mi.uordblks,current_time/1000,long_time);//long_time=x71minutes
         }
     }
 }
