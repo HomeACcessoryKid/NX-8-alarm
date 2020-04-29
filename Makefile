@@ -1,7 +1,6 @@
 PROGRAM = main
 
 EXTRA_COMPONENTS = \
-	extras/sntp \
 	extras/http-parser \
 	extras/dhcpserver \
 	extras/rboot-ota \

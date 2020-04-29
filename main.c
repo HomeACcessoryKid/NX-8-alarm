@@ -28,7 +28,6 @@
 #include <nx8bus.h>
 #include <malloc.h>
 #include <unistd.h>
-#include <sntp.h>
 
 #ifndef VERSION
  #error You must set VERSION=x.y.z to match github version tag x.y.z
@@ -502,28 +501,18 @@ homekit_server_config_t config = {
 };
 
 void monitor_task(void *arg) {
+    uint32_t current_time, old_time=0;
     extern uint32_t xPortSupervisorStackPointer;
     struct mallinfo mi;
     uint32_t brk_val;
     uint32_t sp;
     uint8_t old_channel=0,current_channel=0;
-    int old_heap=0, current_heap=0, delta_heap=0;
-    //time support
-    time_t ts;
-    const char *servers[] = {"0.pool.ntp.org", "1.pool.ntp.org", "2.pool.ntp.org", "3.pool.ntp.org"};
-	sntp_set_update_delay(60*60000); //SNTP will request an update every hour
-	const struct timezone tz = {1*60, 1}; //Set GMT+1 zone, daylight savings off
-	sntp_initialize(&tz);
-	//sntp_initialize(NULL);
-	sntp_set_servers(servers, sizeof(servers) / sizeof(char*)); //Servers must be configured right after initialization
-    do {ts = time(NULL);
-        if (ts == ((time_t)-1)) UDPLUO("ts=-1, ");
-        vTaskDelay(1);
-    } while (!(ts>1073741823)); //2^30-1 which is supposed to be like 2004
-    UDPLUO("TIME: %s", ctime(&ts));
-    
+    int old_heap=0, current_heap=0, delta_heap=0, long_time=0;
     while(1) {
         vTaskDelay(100);
+        current_time=sdk_system_get_time();
+        if (current_time<old_time) long_time++;
+        old_time=current_time;
         current_heap=xPortGetFreeHeapSize();
         delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
         if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
@@ -532,9 +521,8 @@ void monitor_task(void *arg) {
             mi=mallinfo();
             brk_val = (uint32_t) sbrk(0);
             sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
-            ts = time(NULL);
-            UDPLUO("--- Channel:%2d sp-brk:%5d free:%5d fordblks:%5d uordblks:%5d @ %7d = %s",
-                old_channel,sp-brk_val,current_heap,mi.fordblks,mi.uordblks,sdk_system_get_time()/1000,ctime(&ts));//ctime inncludes a /n
+            UDPLUO("--- Ch:%2d sp-brk:%5d free:%5d fordblks:%5d uordblks:%5d @ %dH+%7d/n",
+                old_channel,sp-brk_val,current_heap,mi.fordblks,mi.uordblks,long_time,current_time/1000);//long_time=x71minutes
         }
     }
 }
