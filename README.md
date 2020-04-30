@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.4.2 crude routine to monitor the size of the biggest available heap block
+
 ### 0.4.1 fixed monitor report format
 
 ### 0.4.0 removed NTP time but count 32bit microsecond wraparound=71minutes
