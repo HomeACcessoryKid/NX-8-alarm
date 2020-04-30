@@ -511,20 +511,20 @@ void monitor_task(void *arg) {
     int delta_heap;
     char *dummy;
     while(1) {
-        vTaskDelay(100);
+        vTaskDelay(50);
         current_heap=xPortGetFreeHeapSize();
         delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
         if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
         if (old_channel!=current_channel || delta_heap>300) {
             old_channel =current_channel;   old_heap =current_heap;
-            factor=39366; while (!(dummy=malloc(current_heap*factor/59049))) factor=factor*2/3; //59049=3^10 39366=2*3^9
+            factor=62500; while (!(dummy=malloc(current_heap*factor/78125))) factor=factor*4/5; //78125=5^7 62500=4*5^6
             free(dummy); //get size of biggest block available
             current_time=sdk_system_get_time(); if (current_time<old_time) long_time++; old_time=current_time;
             mi=mallinfo();
             brk_val = (uint32_t) sbrk(0);
             sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
-            UDPLUO("--- ch:%2d big:%5d free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %7ds + %d h12m\n",
-                current_channel,current_heap*factor/59049,current_heap,sp-brk_val,mi.fordblks,mi.uordblks,current_time/1000000,long_time);//long_time=x71.6minutes
+            UDPLUO("--- ch:%2d big:%5d free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %4ds + %d h12m\n",
+                current_channel,current_heap*factor/78125,current_heap,sp-brk_val,mi.fordblks,mi.uordblks,current_time/1000000,long_time);//long_time=x71.6minutes
         }
     }
 }
