@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.4.4 make heap probe table based and make H:M:S timeoutput
+
 ### 0.4.3 set heap probe factor to 4/5 instead of 2/3
 
 ### 0.4.2 crude routine to monitor the size of the biggest available heap block

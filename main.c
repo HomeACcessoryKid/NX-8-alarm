@@ -502,29 +502,33 @@ homekit_server_config_t config = {
 
 void monitor_task(void *arg) {
     uint32_t current_time, old_time=0;
+    uint32_t long_time=0, seconds=0, second, minute, minutes, hour;
     extern uint32_t xPortSupervisorStackPointer;
     struct mallinfo mi;
-    uint32_t brk_val;
-    uint32_t sp;
+    uint32_t brk_val, sp, i=0;
     uint8_t old_channel=0,current_channel=0;
-    uint32_t old_heap=0, current_heap=0, long_time=0, factor;
+    uint32_t   old_heap=0,   current_heap=0;
     int delta_heap;
     char *dummy;
+    int ref[]={60000,16000,14000,12000,11000,10000,9000,8000,7500,7000,6500,6000,5500,5000,4666,4333,4000,
+                3666, 3333, 3000, 2750, 2500, 2250,2000,1800,1600,1400,1200,1000, 800, 600, 400, 200,   0};
     while(1) {
-        vTaskDelay(50);
+        vTaskDelay(10);
         current_heap=xPortGetFreeHeapSize();
         delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
         if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
         if (old_channel!=current_channel || delta_heap>300) {
             old_channel =current_channel;   old_heap =current_heap;
-            factor=62500; while (!(dummy=malloc(current_heap*factor/78125))) factor=factor*4/5; //78125=5^7 62500=4*5^6
+            i=1; while (!(current_heap>ref[i])) i++;
+            while (!(dummy=malloc(ref[i]))) i++;
             free(dummy); //get size of biggest block available
-            current_time=sdk_system_get_time(); if (current_time<old_time) long_time++; old_time=current_time;
+            current_time=sdk_system_get_time(); if (current_time<old_time) long_time+=4295; old_time=current_time;
             mi=mallinfo();
             brk_val = (uint32_t) sbrk(0);
             sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
-            UDPLUO("--- ch:%2d big:%5d free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %4ds + %d h12m\n",
-                current_channel,current_heap*factor/78125,current_heap,sp-brk_val,mi.fordblks,mi.uordblks,current_time/1000000,long_time);//long_time=x71.6minutes
+            seconds=long_time+current_time/1000000; second=seconds%60; minutes=seconds/60; minute=minutes%60; hour=minutes/60;
+            UDPLUO("--- ch:%2d big:(%5d-%5d) free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %d:%2d:%2d\n",
+                current_channel,ref[i-1],ref[i],current_heap,sp-brk_val,mi.fordblks,mi.uordblks,hour,minute,second);
         }
     }
 }
