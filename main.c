@@ -524,10 +524,9 @@ void monitor_task(void *arg) {
             free(dummy); //get size of biggest block available
             current_time=sdk_system_get_time(); if (current_time<old_time) long_time+=4295; old_time=current_time;
             mi=mallinfo();
-            brk_val = (uint32_t) sbrk(0);
-            sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
+            brk_val = (uint32_t) sbrk(0); sp = xPortSupervisorStackPointer; //if(sp==0) SP(sp);
             seconds=long_time+current_time/1000000; second=seconds%60; minutes=seconds/60; minute=minutes%60; hour=minutes/60;
-            UDPLUO("--- ch:%2d big:(%5d-%5d) free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %d:%2d:%2d\n",
+            UDPLUO("--- ch:%2d big:(%5d-%5d) free:%5d=sp-brk:%5d + fordblks:%5d uordblks:%5d @ %d:%02d:%02d\n",
                 current_channel,ref[i-1],ref[i],current_heap,sp-brk_val,mi.fordblks,mi.uordblks,hour,minute,second);
         }
     }
