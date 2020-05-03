@@ -17,6 +17,10 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.4.9 removing old sockets from same IP
+
+### 0.4.8 also report address of closing connection
+
 ### 0.4.7 make homekit report existing connections when new connection arrives
 
 ### 0.4.6 changed to debug line in json_end and json_free
