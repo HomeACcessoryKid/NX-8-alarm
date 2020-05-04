@@ -542,8 +542,9 @@ void on_wifi_ready() {
     
     homekit_server_init(&config);
 }
-
+char *reduce_available_ram;
 void user_init(void) {
     uart_set_baud(0, 115200);
+    reduce_available_ram=malloc(5000); //TODO: remove after experiments for memory pressure
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }

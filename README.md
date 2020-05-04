@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.4.10 reduce ram by 5k to test memory pressure and changed remove code
+
 ### 0.4.9 removing old sockets from same IP
 
 ### 0.4.8 also report address of closing connection
