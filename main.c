@@ -545,6 +545,6 @@ void on_wifi_ready() {
 char *reduce_available_ram;
 void user_init(void) {
     uart_set_baud(0, 115200);
-    reduce_available_ram=malloc(7000); //TODO: remove after experiments for memory pressure
+    reduce_available_ram=malloc(8000); //TODO: remove after experiments for memory pressure
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }
