@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.5.1 reduced various stack sizes of tasks
+
 ### 0.5.0 added task statistics readout for high water mark of various tasks
 
 ### 0.4.13 removed stealing heap for long term stability test

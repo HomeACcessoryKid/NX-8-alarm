@@ -419,8 +419,8 @@ void receive_task(void *argv) {
 void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
-    xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 512, NULL, 3, NULL);
+    xTaskCreate(receive_task, "receive", 256, NULL, 2, NULL);
+    xTaskCreate( target_task,  "target", 256, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
     timerNcallback(3);
@@ -569,9 +569,9 @@ void on_wifi_ready() {
     udplog_init(2);
     UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
 
-    xTaskCreate(monitor_task, "monitor", 324, NULL, 1, NULL);
+    xTaskCreate(monitor_task, "monitor", 256, NULL, 1, NULL);
 #if configUSE_TRACE_FACILITY
-    xTaskCreate(task_stats_task, "task_stats", 300 , NULL, tskIDLE_PRIORITY+1, NULL);
+    xTaskCreate(task_stats_task, "task_stats", 256 , NULL, tskIDLE_PRIORITY+1, NULL);
 #endif
     alarm_init();
     
