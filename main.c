@@ -419,8 +419,8 @@ void receive_task(void *argv) {
 void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
-    xTaskCreate(receive_task, "receive", 256, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 192, NULL, 3, NULL);
+    xTaskCreate(receive_task, "receive", 400, NULL, 2, NULL);
+    xTaskCreate( target_task,  "target", 300, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
     timerNcallback(3);
@@ -519,15 +519,15 @@ void task_stats_task ( void *args)
             uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,uxArraySize,&ulTotalRunTime );
             
             // For each populated position in the pxTaskStatusArray array, format the raw data as human readable ASCII data
-            printf ("RTC, CS, CP, BP,  HWM, Name, x %ld\n", uxArraySize);
+            printf ("RTC CS CP BP  HWM Name, x %ld\n", uxArraySize);
             for( x = 0; x < uxArraySize; x++ ) {
-                printf ( "%3d,%3d,%3ld,%3ld,%5d, %s\n",
-                        pxTaskStatusArray[ x ].ulRunTimeCounter,
-                        pxTaskStatusArray[ x ].eCurrentState,
-                        pxTaskStatusArray[ x ].uxCurrentPriority ,
-                        pxTaskStatusArray[ x ].uxBasePriority,
-                        pxTaskStatusArray[ x ].usStackHighWaterMark,
-                        pxTaskStatusArray[ x ].pcTaskName);
+                printf ( "%3d%3d%3ld%3ld%5d %s\n",
+                        pxTaskStatusArray[x].ulRunTimeCounter,
+                        pxTaskStatusArray[x].eCurrentState,
+                        pxTaskStatusArray[x].uxCurrentPriority ,
+                        pxTaskStatusArray[x].uxBasePriority,
+                        pxTaskStatusArray[x].usStackHighWaterMark,
+                        pxTaskStatusArray[x].pcTaskName);
             }
             // The array is no longer needed, free the memory it consumes
             vPortFree( pxTaskStatusArray );
@@ -569,9 +569,9 @@ void on_wifi_ready() {
     udplog_init(2);
     UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
 
-    xTaskCreate(monitor_task, "monitor", 256, NULL, 1, NULL);
+    xTaskCreate(monitor_task, "monitor", 324, NULL, 1, NULL);
 #if configUSE_TRACE_FACILITY
-    xTaskCreate(task_stats_task, "task_stats", 256 , NULL, tskIDLE_PRIORITY+1, NULL);
+    xTaskCreate(task_stats_task, "task_stats", 324 , NULL, tskIDLE_PRIORITY+1, NULL);
 #endif
     alarm_init();
     
