@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.5.2 reduced stack sizes of tasks target and logsend
+
 ### 0.5.1 reduced various stack sizes of tasks
 
 ### 0.5.0 added task statistics readout for high water mark of various tasks

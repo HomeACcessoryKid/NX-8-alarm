@@ -420,7 +420,7 @@ void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 256, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 256, NULL, 3, NULL);
+    xTaskCreate( target_task,  "target", 192, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
     timerNcallback(3);
