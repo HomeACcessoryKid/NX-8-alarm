@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.5.0 added task statistics readout for high water mark of various tasks
+
 ### 0.4.13 removed stealing heap for long term stability test
 
 ### 0.4.12 changed heap report in json code and stealing 8k heap

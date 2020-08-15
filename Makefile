@@ -24,6 +24,8 @@ ifdef VERSION
 EXTRA_CFLAGS += -DVERSION=\"$(VERSION)\"
 endif
 
+EXTRA_CFLAGS += -DconfigUSE_TRACE_FACILITY
+
 include $(SDK_PATH)/common.mk
 
 monitor:

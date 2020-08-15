@@ -500,6 +500,43 @@ homekit_server_config_t config = {
     .password = "111-11-111"
 };
 
+#if configUSE_TRACE_FACILITY
+void task_stats_task ( void *args)
+{
+    TaskStatus_t *pxTaskStatusArray;
+    UBaseType_t uxArraySize, x;
+    uint32_t ulTotalRunTime;
+        
+    while (1) {
+        // Take a snapshot of the number of tasks in case it changes while this function is executing
+        uxArraySize = uxTaskGetNumberOfTasks();
+        
+        // Allocate a TaskStatus_t structure for each task.  An array could be allocated statically at compile time
+        pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+                
+        if( pxTaskStatusArray != NULL ) {
+            // Generate raw status information about each task
+            uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,uxArraySize,&ulTotalRunTime );
+            
+            // For each populated position in the pxTaskStatusArray array, format the raw data as human readable ASCII data
+            printf ("RTC, CS, CP, BP,  HWM, Name, x %ld\n", uxArraySize);
+            for( x = 0; x < uxArraySize; x++ ) {
+                printf ( "%3d,%3d,%3ld,%3ld,%5d, %s\n",
+                        pxTaskStatusArray[ x ].ulRunTimeCounter,
+                        pxTaskStatusArray[ x ].eCurrentState,
+                        pxTaskStatusArray[ x ].uxCurrentPriority ,
+                        pxTaskStatusArray[ x ].uxBasePriority,
+                        pxTaskStatusArray[ x ].usStackHighWaterMark,
+                        pxTaskStatusArray[ x ].pcTaskName);
+            }
+            // The array is no longer needed, free the memory it consumes
+            vPortFree( pxTaskStatusArray );
+        }
+        vTaskDelay(300000/ portTICK_PERIOD_MS);
+    }
+}
+#endif
+
 void monitor_task(void *arg) {
     uint32_t current_time, old_time=0;
     uint32_t long_time=0, seconds=0, second, minute, minutes, hour;
@@ -532,7 +569,10 @@ void on_wifi_ready() {
     udplog_init(2);
     UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
 
-    xTaskCreate(monitor_task, "monitor", 512, NULL, 1, NULL);
+    xTaskCreate(monitor_task, "monitor", 324, NULL, 1, NULL);
+#if configUSE_TRACE_FACILITY
+    xTaskCreate(task_stats_task, "task_stats", 300 , NULL, tskIDLE_PRIORITY+1, NULL);
+#endif
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
