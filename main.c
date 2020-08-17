@@ -415,18 +415,96 @@ void receive_task(void *argv) {
     }//while true
 }
 
+#if configUSE_TRACE_FACILITY
+void task_stats_task ( void *args)
+{
+    TaskStatus_t *pxTaskStatusArray;
+    UBaseType_t uxArraySize, x;
+    uint32_t ulTotalRunTime;
+        
+    while (1) {
+        // Take a snapshot of the number of tasks in case it changes while this function is executing
+        uxArraySize = uxTaskGetNumberOfTasks();
+        
+        // Allocate a TaskStatus_t structure for each task.  An array could be allocated statically at compile time
+        pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+                
+        if( pxTaskStatusArray != NULL ) {
+            // Generate raw status information about each task
+            uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,uxArraySize,&ulTotalRunTime );
+            
+            // For each populated position in the pxTaskStatusArray array, format the raw data as human readable ASCII data
+            printf ("RTC CS CP BP  HWM Name, x %ld\n", uxArraySize);
+            for( x = 0; x < uxArraySize; x++ ) {
+                printf ( "%3d%3d%3ld%3ld%5d %s\n",
+                        pxTaskStatusArray[x].ulRunTimeCounter,
+                        pxTaskStatusArray[x].eCurrentState,
+                        pxTaskStatusArray[x].uxCurrentPriority ,
+                        pxTaskStatusArray[x].uxBasePriority,
+                        pxTaskStatusArray[x].usStackHighWaterMark,
+                        pxTaskStatusArray[x].pcTaskName);
+            }
+            // The array is no longer needed, free the memory it consumes
+            vPortFree( pxTaskStatusArray );
+        }
+        vTaskDelay(300000/ portTICK_PERIOD_MS);
+    }
+}
+#endif
+
+void monitor_task(void *arg) {
+    uint32_t current_time, old_time=0;
+    uint32_t long_time=0, seconds=0, second, minute, minutes, hour;
+    extern uint32_t xPortSupervisorStackPointer;
+//    uint8_t old_channel=0, current_channel=0;
+    uint32_t old_heap=0, current_heap=0, i=0;
+    int delta_heap;
+    char *dummy;
+    int ref[]={60000,16000,14000,12000,11000,10000,9000,8000,7500,7000,6500,6000,5500,5000,4666,4333,4000,
+                3666, 3333, 3000, 2750, 2500, 2250,2000,1800,1600,1400,1200,1000, 800, 600, 400, 200,   0};
+    while(1) {
+        vTaskDelay(10);
+        current_heap=xPortGetFreeHeapSize();
+        delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
+//         if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
+//         if (old_channel!=current_channel || delta_heap>300) {
+//             old_channel =current_channel;   old_heap =current_heap;
+        if (delta_heap>300) {
+            old_heap =current_heap;
+            i=1; while (!(current_heap>ref[i])) i++;
+            while (!(dummy=malloc(ref[i]))) i++;
+            free(dummy); //get size of biggest block available
+            current_time=sdk_system_get_time(); if (current_time<old_time) long_time+=4295; old_time=current_time;
+            seconds=long_time+current_time/1000000; second=seconds%60; minutes=seconds/60; minute=minutes%60; hour=minutes/60;
+            UDPLUO("--- big:(%5d-%5d) free:%5d sp-brk:%d @ %d:%02d:%02d.%02d\n",
+                    ref[i-1],ref[i],current_heap,xPortSupervisorStackPointer-(uint32_t)sbrk(0),
+                    hour,minute,second,(current_time/10000)%100);
+        }
+    }
+}
+
+homekit_server_config_t config;
 #define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
-    send_ok = xSemaphoreCreateBinary();
-    acked   = xSemaphoreCreateBinary();
-    xTaskCreate(receive_task, "receive", 512, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 512, NULL, 3, NULL);
-    timerNcallback(1);
-    timerNcallback(2);
-    timerNcallback(3);
-    timerNcallback(4);
-    timerNcallback(5);
-    timerNcallback(6);
+    if (homekit_is_paired()) {
+        config.on_event=NULL;
+        udplog_init(2);
+        UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
+        xTaskCreate(monitor_task, "monitor", 324, NULL, 1, NULL);
+#if     configUSE_TRACE_FACILITY
+        xTaskCreate(task_stats_task, "task_stats", 324 , NULL, tskIDLE_PRIORITY+1, NULL);
+#endif
+        send_ok = xSemaphoreCreateBinary();
+        acked   = xSemaphoreCreateBinary();
+        xTaskCreate(receive_task, "receive", 400, NULL, 2, NULL);
+        xTaskCreate( target_task,  "target", 300, NULL, 3, NULL);
+        timerNcallback(1);
+        timerNcallback(2);
+        timerNcallback(3);
+        timerNcallback(4);
+        timerNcallback(5);
+        timerNcallback(6);
+    }
 }
 
 #define timerNdefine(N,ID) \
@@ -497,42 +575,15 @@ homekit_accessory_t *accessories[] = {
 
 homekit_server_config_t config = {
     .accessories = accessories,
+    .on_event=alarm_init,
     .password = "111-11-111"
 };
 
-void monitor_task(void *arg) {
-    uint32_t current_time, old_time=0;
-    uint32_t long_time=0, seconds=0, second, minute, minutes, hour;
-    extern uint32_t xPortSupervisorStackPointer;
-    uint8_t old_channel=0, current_channel=0;
-    uint32_t old_heap=0, current_heap=0, i=0;
-    int delta_heap;
-    char *dummy;
-    int ref[]={60000,16000,14000,12000,11000,10000,9000,8000,7500,7000,6500,6000,5500,5000,4666,4333,4000,
-                3666, 3333, 3000, 2750, 2500, 2250,2000,1800,1600,1400,1200,1000, 800, 600, 400, 200,   0};
-    while(1) {
-        vTaskDelay(10);
-        current_heap=xPortGetFreeHeapSize();
-        delta_heap=old_heap-current_heap; if (delta_heap<0) delta_heap*=-1;
-        if (sdk_wifi_station_get_connect_status() == STATION_GOT_IP) current_channel=sdk_wifi_get_channel();
-        if (old_channel!=current_channel || delta_heap>300) {
-            old_channel =current_channel;   old_heap =current_heap;
-            i=1; while (!(current_heap>ref[i])) i++;
-            while (!(dummy=malloc(ref[i]))) i++;
-            free(dummy); //get size of biggest block available
-            current_time=sdk_system_get_time(); if (current_time<old_time) long_time+=4295; old_time=current_time;
-            seconds=long_time+current_time/1000000; second=seconds%60; minutes=seconds/60; minute=minutes%60; hour=minutes/60;
-            UDPLUO("--- ch:%2d big:(%5d-%5d) free:%5d sp-brk:%d @ %d:%02d:%02d\n",
-                current_channel,ref[i-1],ref[i],current_heap,xPortSupervisorStackPointer-(uint32_t)sbrk(0),hour,minute,second);
-        }
-    }
-}
-
 void on_wifi_ready() {
-    udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
-
-    xTaskCreate(monitor_task, "monitor", 512, NULL, 1, NULL);
+//     udplog_init(2);
+//     UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
+// 
+//     xTaskCreate(monitor_task, "monitor", 512, NULL, 1, NULL);
     alarm_init();
     
     int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
@@ -541,6 +592,7 @@ void on_wifi_ready() {
     config.accessories[0]->config_number=c_hash;
     
     homekit_server_init(&config);
+    printf("heap= %d\n",xPortGetFreeHeapSize());
 }
 //char *reduce_available_ram;
 void user_init(void) {
