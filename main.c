@@ -33,6 +33,8 @@
  #error You must set VERSION=x.y.z to match github version tag x.y.z
 #endif
 
+#define PIN_RTC_ADDR    0x600013A8
+#define PIN_MAGIC       0xdeafbeef
 #define RX_PIN 5
 #define TX_PIN 4
 #define MY_ID  0xd8
@@ -150,6 +152,7 @@ homekit_value_t pin_get() {
         off[6]=pin3.value.int_value+pin4.value.int_value*0x10;
         UDPLUS("\nPIN bytes set\n");
         prog[5]=off[5]; prog[6]=off[6];
+        WRITE_PERI_REG(PIN_RTC_ADDR,PIN_MAGIC); WRITE_PERI_REG(PIN_RTC_ADDR+4,off[6]*256+off[5]);
         pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
     }
     if (off[5] || off[6]) return HOMEKIT_INT(-1); else return HOMEKIT_INT(0);
@@ -419,8 +422,8 @@ void receive_task(void *argv) {
 void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
-    xTaskCreate(receive_task, "receive", 400, NULL, 2, NULL);
-    xTaskCreate( target_task,  "target", 300, NULL, 3, NULL);
+    xTaskCreate(receive_task, "receive", 320, NULL, 2, NULL);
+    xTaskCreate( target_task,  "target", 192, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
     timerNcallback(3);
@@ -532,7 +535,7 @@ void task_stats_task ( void *args)
             // The array is no longer needed, free the memory it consumes
             vPortFree( pxTaskStatusArray );
         }
-        vTaskDelay(300000/ portTICK_PERIOD_MS);
+        vTaskDelay(600000/ portTICK_PERIOD_MS);
     }
 }
 #endif
@@ -585,6 +588,11 @@ void on_wifi_ready() {
 //char *reduce_available_ram;
 void user_init(void) {
     uart_set_baud(0, 115200);
+	if (READ_PERI_REG(PIN_RTC_ADDR)==PIN_MAGIC) {
+	    off[5]=READ_PERI_REG(PIN_RTC_ADDR+4)&0xff; off[6]=(READ_PERI_REG(PIN_RTC_ADDR+4)>>8)&0xff;
+	    printf("PIN loaded from RTC\n");
+	    pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
+    }
 //    reduce_available_ram=malloc(8000); //TODO: remove after experiments for memory pressure
     wifi_config_init("NX-8", NULL, on_wifi_ready);
 }

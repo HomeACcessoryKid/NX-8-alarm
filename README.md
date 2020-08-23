@@ -17,6 +17,8 @@
  * Some credit goes to the softuart writers on which this is loosly based
 
 ## Change history
+### 0.6.0 PIN code stored in volatile RTC user memory and stack adjustment
+
 ### 0.5.3 increased stack sizes of tasks after instability
 
 ### 0.5.2 reduced stack sizes of tasks target and logsend
