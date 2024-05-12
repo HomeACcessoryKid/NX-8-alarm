@@ -16,7 +16,11 @@
  * The rx pin is reading the bus by a divider of 10k to ground and 33k to the dataline
  * Some credit goes to the softuart writers on which this is loosly based
 
+## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
+
 ## Change history
+### 0.6.1 deferred alarm_init until homekit is paired
+
 ### 0.6.0 PIN code stored in volatile RTC user memory and stack adjustment
 
 ### 0.5.3 increased stack sizes of tasks after instability

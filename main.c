@@ -420,6 +420,8 @@ void receive_task(void *argv) {
 
 #define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
+  if (homekit_is_paired()) {
+    config.on_event=NULL;
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 320, NULL, 2, NULL);
@@ -430,6 +432,7 @@ void alarm_init() {
     timerNcallback(4);
     timerNcallback(5);
     timerNcallback(6);
+  }
 }
 
 #define timerNdefine(N,ID) \
@@ -500,6 +503,7 @@ homekit_accessory_t *accessories[] = {
 
 homekit_server_config_t config = {
     .accessories = accessories,
+    .on_event=alarm_init,
     .password = "111-11-111"
 };
 
