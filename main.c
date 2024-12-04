@@ -418,6 +418,7 @@ void receive_task(void *argv) {
     }//while true
 }
 
+homekit_server_config_t config;
 #define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
   if (homekit_is_paired()) {
