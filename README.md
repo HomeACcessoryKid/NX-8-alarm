@@ -1,6 +1,6 @@
 # NX-8-alarm
 
-## (c) 2019-2020 HomeACcessoryKid@gmail.com
+## (c) 2019-2026 HomeACcessoryKid@gmail.com
  *  This example makes an NetworX NX-8 alarm system homekit enabled.
  *  The alarm can switch between off, away and sleep
  *  the individual sensors are set out as individual motion sensors accessories
@@ -19,6 +19,9 @@
 ## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
 
 ## Change history
+### 0.6.2 pinger to reset on failed Wi-Fi
+- ping a host to check if Wi-Fi is still reaching the network, else reset
+
 ### 0.6.1 deferred alarm_init until homekit is paired
 
 ### 0.6.0 PIN code stored in volatile RTC user memory and stack adjustment
