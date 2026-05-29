@@ -19,6 +19,11 @@
 ## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
 
 ## Change history
+### 0.6.3 removed wifi_config
+- wifi_config interferes with the bandsteering
+- all wifi config will be done only by life-cycle-manager
+- updated esp-homekit to a newer branch which is also used in other projects
+
 ### 0.6.2 pinger to reset on failed Wi-Fi
 - ping a host to check if Wi-Fi is still reaching the network, else reset
 

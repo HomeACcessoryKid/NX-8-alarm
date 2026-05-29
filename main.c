@@ -23,7 +23,6 @@
 #include <homekit/characteristics.h>
 #include <string.h>
 #include "lwip/api.h"
-#include <wifi_config.h>
 #include <udplogger.h>
 #include <nx8bus.h>
 #include <malloc.h>
@@ -422,17 +421,59 @@ void receive_task(void *argv) {
     }//while true
 }
 
+void ping_task(void *argv) {
+    int count=120,delay=1; //seconds
+    ping_result_t res;
+    ip_addr_t to_ping;
+    inet_aton(pinger_target,&to_ping);
+
+    printf("Pinging IP %s\n", ipaddr_ntoa(&to_ping));
+    while(1){
+        ping_ip(to_ping, &res);
+
+        if (res.result_code == PING_RES_ECHO_REPLY) {
+            count+=10; delay+=5;
+            if (count>120) count=120; if (delay>60) delay=60;
+            printf("good ping from %s %u ms -> count: %d s\n", ipaddr_ntoa(&res.response_ip), res.response_time_ms, count);
+        } else {
+            count--; delay=1;
+            printf("failed ping err %d -> count: %d s\n", res.result_code, count);
+        }
+        if (count==0) {
+            printf("restarting because can't ping home-hub\n");
+            sdk_system_restart();  //#include <rboot-api.h>
+        }
+        vTaskDelay(delay*(1000/portTICK_PERIOD_MS));
+    }
+}
+
+char error[]="error";
+static void ota_string() {
+    char *otas;
+    if (sysparam_get_string("ota_string", &otas) == SYSPARAM_OK) {
+        pinger_target=strtok(otas,";");
+    }
+    if (pinger_target==NULL) pinger_target=error;
+}
+
+
+
 void monitor_task(void *arg);
 void task_stats_task ( void *args);
 homekit_server_config_t config;
 #define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
+  udplog_init(2);
+  UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
   if (homekit_is_paired()) {
+    config.on_event=NULL;
+    //sysparam_set_string("ota_string", "192.168.178.100"); //can be used if not using LCM
+    ota_string();
+    xTaskCreate( ping_task, "PingT", 512, NULL, 1, NULL);
     xTaskCreate(monitor_task, "monitor", 324, NULL, 1, NULL);
 #if configUSE_TRACE_FACILITY
     xTaskCreate(task_stats_task, "task_stats", 324 , NULL, tskIDLE_PRIORITY+1, NULL);
 #endif
-    config.on_event=NULL;
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 320, NULL, 2, NULL);
@@ -583,54 +624,7 @@ void monitor_task(void *arg) {
     }
 }
 
-void ping_task(void *argv) {
-    int count=120,delay=1; //seconds
-    ping_result_t res;
-    ip_addr_t to_ping;
-    inet_aton(pinger_target,&to_ping);
     
-    printf("Pinging IP %s\n", ipaddr_ntoa(&to_ping));
-    while(1){
-        ping_ip(to_ping, &res);
-
-        if (res.result_code == PING_RES_ECHO_REPLY) {
-            count+=10; delay+=5;
-            if (count>120) count=120; if (delay>60) delay=60;
-            printf("good ping from %s %u ms -> count: %d s\n", ipaddr_ntoa(&res.response_ip), res.response_time_ms, count);
-        } else {
-            count--; delay=1;
-            printf("failed ping err %d -> count: %d s\n", res.result_code, count);
-        }
-        if (count==0) {
-            printf("restarting because can't ping home-hub\n");
-            sdk_system_restart();  //#include <rboot-api.h>
-        }
-        vTaskDelay(delay*(1000/portTICK_PERIOD_MS));
-    }
-}
-
-char error[]="error";
-static void ota_string() {
-    char *otas;
-    if (sysparam_get_string("ota_string", &otas) == SYSPARAM_OK) {
-        pinger_target=strtok(otas,";");
-    }
-    if (pinger_target==NULL) pinger_target=error;
-}
-
-void on_wifi_ready() {
-    udplog_init(2);
-    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
-
-    alarm_init();
-    
-    int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
-                                      &model.value.string_value,&revision.value.string_value);
-    //c_hash=1001; revision.value.string_value="0.1.1"; //cheat line
-    config.accessories[0]->config_number=c_hash;
-    
-    homekit_server_init(&config);
-}
 //char *reduce_available_ram;
 void user_init(void) {
     uart_set_baud(0, 115200);
@@ -640,9 +634,13 @@ void user_init(void) {
 	    pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
     }
 //    reduce_available_ram=malloc(8000); //TODO: remove after experiments for memory pressure
-    wifi_config_init("NX-8", NULL, on_wifi_ready);
 
-    //sysparam_set_string("ota_string", "192.168.178.100"); //can be used if not using LCM
-    ota_string();
-    xTaskCreate( ping_task, "PingT", 512, NULL, 1, NULL);
+    alarm_init();
+
+    int c_hash=ota_read_sysparam(&manufacturer.value.string_value,&serial.value.string_value,
+                                      &model.value.string_value,&revision.value.string_value);
+    //c_hash=1001; revision.value.string_value="0.1.1"; //cheat line
+    config.accessories[0]->config_number=c_hash;
+
+    homekit_server_init(&config);
 }
