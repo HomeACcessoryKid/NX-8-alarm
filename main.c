@@ -278,6 +278,9 @@ void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Prot
     }
     if (stable) {
         target.value.int_value = currentstate;
+        if (READ_PERI_REG(PIN_RTC_ADDR)==PIN_MAGIC) {
+            WRITE_PERI_REG(PIN_RTC_ADDR+8,currentstate);
+        }
         if (acked_target>=0) {new_target=currentstate; acked_target=-1;}
     } else { //recent arming or disarming
         if (acked_target==-1) acked_target=new_target; //must have come from NX-8 console
@@ -632,6 +635,7 @@ void user_init(void) {
 	    off[5]=READ_PERI_REG(PIN_RTC_ADDR+4)&0xff; off[6]=(READ_PERI_REG(PIN_RTC_ADDR+4)>>8)&0xff;
 	    printf("PIN loaded from RTC\n");
 	    pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
+	    current.value.int_value=target.value.int_value=currentstate=new_target=READ_PERI_REG(PIN_RTC_ADDR+8);
     }
 //    reduce_available_ram=malloc(8000); //TODO: remove after experiments for memory pressure
 

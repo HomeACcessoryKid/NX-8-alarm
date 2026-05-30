@@ -19,6 +19,9 @@
 ## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
 
 ## Change history
+### 0.6.4 store alarm state in volatile RTC user memory as well
+- due to PIN stored, a reset would otherwise disable alarm if it was armed
+
 ### 0.6.3 removed wifi_config
 - wifi_config interferes with the bandsteering
 - all wifi config will be done only by life-cycle-manager
