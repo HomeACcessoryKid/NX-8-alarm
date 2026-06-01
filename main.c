@@ -259,6 +259,7 @@ void target_task(void *argv) {
     }
 }
 
+bool after_reset=true;
 void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Protocol.pdf message 06h
     int old_target =   target.value.int_value;
     int old_current=  current.value.int_value;
@@ -278,8 +279,9 @@ void parse18(void) { //command is 10X 18 PP; see Caddx_NX-584_Communication_Prot
     }
     if (stable) {
         target.value.int_value = currentstate;
-        if (READ_PERI_REG(PIN_RTC_ADDR)==PIN_MAGIC) {
-            WRITE_PERI_REG(PIN_RTC_ADDR+8,currentstate);
+        if (after_reset && READ_PERI_REG(PIN_RTC_ADDR)==PIN_MAGIC) {
+            current.value.int_value=target.value.int_value=new_target=currentstate;
+            after_reset=false;
         }
         if (acked_target>=0) {new_target=currentstate; acked_target=-1;}
     } else { //recent arming or disarming
@@ -480,6 +482,7 @@ void alarm_init() {
     send_ok = xSemaphoreCreateBinary();
     acked   = xSemaphoreCreateBinary();
     xTaskCreate(receive_task, "receive", 320, NULL, 2, NULL);
+    vTaskDelay(1000/portTICK_PERIOD_MS); //allow initial state to be discovered before starting target task
     xTaskCreate( target_task,  "target", 192, NULL, 3, NULL);
     timerNcallback(1);
     timerNcallback(2);
@@ -635,7 +638,6 @@ void user_init(void) {
 	    off[5]=READ_PERI_REG(PIN_RTC_ADDR+4)&0xff; off[6]=(READ_PERI_REG(PIN_RTC_ADDR+4)>>8)&0xff;
 	    printf("PIN loaded from RTC\n");
 	    pin1.value.int_value=-1; pin2.value.int_value=-1; pin3.value.int_value=-1; pin4.value.int_value=-1;
-	    current.value.int_value=target.value.int_value=currentstate=new_target=READ_PERI_REG(PIN_RTC_ADDR+8);
     }
 //    reduce_available_ram=malloc(8000); //TODO: remove after experiments for memory pressure
 

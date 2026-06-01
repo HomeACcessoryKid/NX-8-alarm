@@ -19,6 +19,10 @@
 ## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
 
 ## Change history
+### 0.6.5 set state based on first time observation
+- state based on RTC memory could be out of sync if changed during downtime
+- very first evaluation of parse18 is used as actual state
+
 ### 0.6.4 store alarm state in volatile RTC user memory as well
 - due to PIN stored, a reset would otherwise disable alarm if it was armed
 
