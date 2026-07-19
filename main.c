@@ -468,10 +468,10 @@ void task_stats_task ( void *args);
 homekit_server_config_t config;
 #define timerNcallback(N) motionTimer ## N=xTimerCreate("mt" #N,pdMS_TO_TICKS(60*1000),pdFALSE,NULL,motion ## N ## timer)
 void alarm_init() {
-  udplog_init(2);
-  UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
   if (homekit_is_paired()) {
     config.on_event=NULL;
+    udplog_init(2);
+    UDPLUS("\n\n\nNX-8-alarm " VERSION "\n");
     //sysparam_set_string("ota_string", "192.168.178.100"); //can be used if not using LCM
     ota_string();
     xTaskCreate( ping_task, "PingT", 512, NULL, 1, NULL);
