@@ -42,12 +42,12 @@
 #define MY_ID  0xd8
 
 uint8_t command[20]; //assuming no command will be longer
-uint8_t ack210[]={0x08, 0x44, 0x00};
-uint8_t asleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; //this is button 0
-uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; //this is button 2
-uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; //still must set off[5] and off[6] to pin bytes
-uint8_t   prog[]={0x08, 0xd0, MY_ID, 0x01, 0x01, 0, 0, 0x00}; //still must set prog[5] and prog[6] to pin bytes
-uint8_t ack270[]={0x08, 0x40, 0x00};
+uint8_t ack210[]={0x08, 0x44, 0x00}; uint8_t ack210_len=3;
+uint8_t asleep[]={0x08, 0xd1, MY_ID, 0x00, 0x01}; uint8_t asleep_len=5;//this is button 0
+uint8_t   away[]={0x08, 0xd1, MY_ID, 0x02, 0x01}; uint8_t away_len=5;//this is button 2
+uint8_t    off[]={0x08, 0xd0, MY_ID, 0x00, 0x01, 0, 0, 0x00}; uint8_t off_len=8;//still must set off[5] and off[6] to pin bytes
+uint8_t   prog[]={0x08, 0xd0, MY_ID, 0x01, 0x01, 0, 0, 0x00}; uint8_t prog_len=8;//still must set prog[5] and prog[6] to pin bytes
+uint8_t ack270[]={0x08, 0x40, 0x00}; uint8_t ack270_len=3;
 SemaphoreHandle_t send_ok;
 SemaphoreHandle_t acked;
 #define           INITIALCURRENT 3
@@ -222,10 +222,10 @@ void identify(homekit_value_t _value) {
 /* ============== END HOMEKIT CHARACTERISTIC DECLARATIONS ================================================================= */
 
 
-//#define send_command(cmd) do{   nx8bus_command(cmd,sizeof(cmd)); } while(0)
-#define send_command(cmd) do{   DEBUGP("\n SEND                       => "); \
-                                for (int i=0;i<sizeof(cmd);i++) DEBUGP(" %02x",cmd[i]); \
-                                nx8bus_command(cmd,sizeof(cmd)); \
+//#define send_command(cmd) do{   nx8bus_command(cmd,cmd_len); } while(0)
+#define send_command(cmd,cmd_len) do{   DEBUGP("\n SEND                       => "); \
+                                for (int i=0;i<cmd_len;i++) DEBUGP(" %02x",cmd[i]); \
+                                nx8bus_command(cmd,cmd_len); \
                             } while(0)
 #define read_byte(data)   do{   while(1) { \
                                     if (!nx8bus_available()) {vTaskDelay(1);continue;} \
@@ -238,16 +238,16 @@ void target_task(void *argv) {
     while(1) {
         if (xSemaphoreTake(send_ok,portMAX_DELAY)) {
             DEBUGP(" SEND_OK");
-//             send_command(prog); continue; //to test transmission reliability
+//             send_command(prog,prog_len); continue; //to test transmission reliability
             if (r2arm && new_target!=target.value.int_value && new_target!=acked_target) {
                 DEBUGP(" Target=%d",new_target);
                 acked_target=-2; //indicates the attempt to send a new_target
                 switch(new_target) {
-                    case 1: send_command( away);
+                    case 1: send_command( away,away_len);
                       break;
-                    case 2: send_command(asleep);
+                    case 2: send_command(asleep,asleep_len);
                       break;
-                    case 3: if (currentstate<3) send_command(off);
+                    case 3: if (currentstate<3) send_command(off,off_len);
                       break;//ONLY DO THIS IF SURE ALARM IS ARMED NOW else it arms the alarm instead of turning it off
                     default: break;
                 }
@@ -404,14 +404,14 @@ void receive_task(void *argv) {
                 command[1]=data;
                 switch(data){
                     case 0x10: { //2 10 is keepalive polling
-                        if (CRC_OK(2)) send_command(ack210);
+                        if (CRC_OK(2)) send_command(ack210,ack210_len);
                     } break;
                     case 0x40: { //2 40 is 108 command ACK
                         if (CRC_OK(2)) xSemaphoreGive(acked);
                     } break;
                     case 0x70: { //2 70 is pin-return message
                         for (i=2;i< 8;i++) read_byte(command[i]);
-                        if (CRC_OK(8)) send_command(ack270);
+                        if (CRC_OK(8)) send_command(ack270,ack270_len);
                     } break;
                     default: { //unknown command for me
                     } break;

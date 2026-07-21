@@ -19,6 +19,10 @@
 ## [Experience report with NX-6-v2](NX6v2_Compatibility_and_Lessons_Learned.md) from a happy maker
 
 ## Change history
+### 0.6.7 fix bad command transmission
+- somehow sizeof(cmd) does not work anymore...!?!?
+- hardcoded sizes as quick fix
+
 ### 0.6.6 bootstrap issue with watchdogtimer triggering
 - put udplog_init inside the homekit_is_paired test
 - 0.6.5 did work OK for some weeks, so it might be a bordercase for timing
